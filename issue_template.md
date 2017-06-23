@@ -1,13 +1,14 @@
-### Expected behaviour
-Tell us what should happen
-
 ### Actual behaviour
-Tell us what happens instead
+-Tell us what happens
 
+### Expected behaviour
+-Tell us what should happen
+ 
 ### Steps to reproduce
 1. 
 2. 
 3. 
+
 
 ### Environment data
 Android version:
@@ -16,9 +17,9 @@ Device model:
 
 Stock or customized system:
 
-ownCloud app version:
+Nextcloud app version:
 
-ownCloud server version:
+Nextcloud server version:
 
 ### Logs
 #### Web server error log
@@ -26,7 +27,8 @@ ownCloud server version:
 Insert your webserver log here
 ```
 
-#### ownCloud log (data/owncloud.log)
+#### Nextcloud log (data/nextcloud.log)
 ```
-Insert your ownCloud log here
+Insert your Nextcloud log here
 ```
+**NOTE:** Be super sure to remove sensitive data like passwords, note that everybody can look here! You can use the Issue Template application to prefill some of the required information: https://apps.nextcloud.com/apps/issuetemplate

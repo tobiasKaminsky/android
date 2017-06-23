@@ -1,2 +1,1 @@
-include ':owncloud-android-library'
 include ':'

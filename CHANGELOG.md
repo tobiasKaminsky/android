@@ -1,84 +1,92 @@
-## 1.9.1 (February 2016)
-- Set and edit permissions on internal shared data
-- Instant uploads: avoid file duplications, set policy in app settings
-- Control duplication of files uploaded via 'Upload' button
-- Select view mode: either list or grid per folder
-- More Material Design: buttons and checkboxes
-- Fixed battery drain in automatic synchronization
-- Security fixes related to passcode
-- Wording fixes
+## 1.4.3 (May 22, 2017)
+- Hotfix: ignore oauth header for now and use basic auth to allow new logins for nc12
 
-## 1.9.0 (December 2015)
-- Share privately with users or groups in your server
-- Share link with password protection and expiration date
-- Fully sync a folder in two ways (manually)
-- Detect share configuration in server
-- Fingerprints in untrusted certificate dialog
-- Thumbnail in details view
-- OC color in notifications
-- Fixed video preview
-- Fixed sorting with accents
-- Error shown when no app can "open with" a file
-- Fixed relative date in some languages
-- Media scanner triggered after uploads
+## 1.4.2 (March 14, 2017)
+- Auto Upload for newly taken photos/images (Android 6+)
+- Auto Upload improvements and fixes
+- Filtering improvements
+- Fix for Android permissions (removed read phone state permission)
+- Fix re-upload of files
+- Avoid toggling favourite for all selected files
+- Link to providers list in the setup screen
+- further bugfixes and improvements
 
-## 1.8.0 (September 2015)
-- New MATERIAL DESIGN theme
-- Updated FILE TYPE ICONS
-- Preview TXT files within the app
-- COPY files & folders
-- Preview the full file/folder name from the long press menu
-- Set a file as FAVORITE (kept-in-sync) from the CONTEXT MENU
-- Updated CONFLICT RESOLUTION dialog (wording)
-- Updated background for images with TRANSPARENCY in GALLERY
-- Hidden files will not enforce list view instead of GRID VIEW (folders from Picasa & others)
-- Security:
-  + Updated network stack with security fixes (Jackrabbit 2.10.1)
-- Bugs fixed:
-  + Fixed crash when ETag is lost
-  + Passcode creation not restarted on device rotation
-  + Recovered share icon shown on folders 'shared with me'
-  + User name added to subject when sending a share link through e-mail (fixed on SAMLed apps)
+## 1.4.1 (January 27, 2017)
+- Share URLs to Nextcloud
+- Improve performance of Auto Upload view
+- Fix for removing files
+- Proper email sharee handling
+- Navigation drawer: Fix lag on older devices
+- Android 7: Pending jobs in upload view
+- Android 7: Auto upload: ignore ".tmp" files and folders
+- Bugfixes and design improvements
 
-## 1.7.2 (July 2015)
-- New navigation drawer
-- Improved Passcode
-- Automatic grid view just for folders full of images
-- More characters allowed in file names
-- Support for servers in same domain, different path
-- Bugs fixed:
-  + Frequent crashes in folder with several images
-  + Sync error in servers with huge quota and external storage enable
-  + Share by link error 
-  + Some other crashes and minor bugs
+## 1.4.0 (December 8, 2016)
 
-## 1.7.1 (April 2015)
+- External SD card support
+- Auto Upload (Android 7+)
+- What's new start screen
+- Show/hide hidden folders & files
+- Upload view: switch between grid/list view
+- Descend into folder after creating it in uploader
+- Provisioning links to launch and prefill app with login data
+- Add open URL file feature
+- Sort favorite files first in list
+- Account switcher optimizations
+- Bugfixes and design improvements
+- Update library to 1.0.9
 
-- Share link even with password enforced by server
-- Get the app ready for oc 8.1 servers
-- Added option to create new folder in uploads from external apps
-- Improved management of deleted users
-- Bugs fixed
-  + Fixed crash on Android 2.x devices
-  + Improvements on uploads
+## 1.3.1 (September 20, 2016)
 
-## 1.7.0 (February 2015)
+- Move action hard to discover - difference between single/multi selection
+- Show move/copy context in toolbar title
+- Share file with dictadroid to Nextcloud
+- Don't show upload failure notification for already deleted files
 
-- Download full folders
-- Grid view for images
-- Remote thumbnails (OC Server 8.0+)
-- Added number of files and folders at the end of the list
-- "Open with" in contextual menu
-- Downloads added to Media Provider
-- Uploads:
-  + Local thumbnails in section "Files"
-  + Multiple selection in "Content from other apps" (Android 4.3+)
-- Gallery: 
-  + proper handling of EXIF
-  + obey sorting in the list of files
-- Settings view updated
-- Improved subjects in e-mails
-- Bugs fixed
+## 1.3.0 (September 17, 2016)
 
+- Files drop permission in share viewe
+- Display quota if configured/available in navigation drawer
+- Resume chunked uploads instead of complete restarts
+- Filter remote and local file lists
+- Simple integration with DAVdroid for calendar and contacts sync
+- Mix folders and files on sort by date
+- Upload when charging option
+- Revamp upload options Move/Copy/Just-Upload
+- Text can be selected and shared to Nextcloud
+- Respect metered wifi and block instant uploads
+- Proper handling of .djvu files
+- Bugfixes and design improvements
 
+## 1.2.0 (July 29, 2016)
 
+- Multi select capabilities
+- Confirmation dialog on account removal
+- Offline available filter in main menu
+- Sorting capability when choosing files to be uploaded
+- Video thumbnails if activated on server
+- Thumbnails during upload
+- Fixed user agent for file firewalling
+- Showing server side folder sizes
+- Text in test preview can now be selected
+- Search suggestions fixed for user/group search during sharing
+- Minor bugfixes
+
+## 1.1.0 (July 6, 2016)
+
+- New main menu to switch accounts easily
+- Ability to open Nextcloud hosted files (read-only) from other apps that support the standard file chooser (requires Android 4.4 / KitKat or higher)
+- "Select all files" for upload within a folder
+- Optional feature to auto-create monthly folders for your instant uploads
+- Revamped login screen
+- Minor bugfixes
+
+## 1.0.1 (June 20, 2016)
+
+- Fix thumbnail preview support for new files
+- Add support for animated GIFs
+- Optimized uploader layout
+
+## 1.0.0 (June 12, 2016)
+
+- Initial release of the Nextcloud Android app 
