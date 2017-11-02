@@ -4,20 +4,20 @@
     <bool name="is_beta">false</bool>
 
     <!-- App name  and other strings-->
-    <string name="app_name">box.fu</string>
-    <string name="account_type">de.fu-berlin.box</string>	<!-- better if was a domain name; but changing it now would require migrate accounts when the app is updated -->
-    <string name="authority">de.fu-berlin.box</string>	<!-- better if was the app package with ".provider" appended ; it identifies the provider -->
-    <string name="users_and_groups_search_authority">de.fu-berlin.box.android.providers.UsersAndGroupsSearchProvider</string>
-    <string name="users_and_groups_share_with">de.fu-berlin.box.android.providers.UsersAndGroupsSearchProvider.action.SHARE_WITH</string>
-    <string name="document_provider_authority">de.fu-berlin.box.documents</string>
-    <string name="file_provider_authority">de.fu-berlin.box.files</string>
+    <string name="app_name">Nextcloud</string>
+    <string name="account_type">nextcloud</string>	<!-- better if was a domain name; but changing it now would require migrate accounts when the app is updated -->
+    <string name="authority">org.nextcloud</string>	<!-- better if was the app package with ".provider" appended ; it identifies the provider -->
+    <string name="users_and_groups_search_authority">com.nextcloud.android.providers.UsersAndGroupsSearchProvider</string>
+    <string name="users_and_groups_share_with">com.nextcloud.android.providers.UsersAndGroupsSearchProvider.action.SHARE_WITH</string>
+    <string name="document_provider_authority">org.nextcloud.documents</string>
+    <string name="file_provider_authority">org.nextcloud.files</string>
     <string name ="db_file">nextcloud.db</string>
     <string name ="db_name">nextcloud</string>
     <string name ="data_folder">nextcloud</string>
     <string name ="log_name">nextcloud</string>
-    <string name="default_display_name_for_root_folder">box.fu</string>
+    <string name ="default_display_name_for_root_folder">Nextcloud</string>
     <string name ="user_agent">Mozilla/5.0 (Android) ownCloud-android/%1$s</string>
-
+    
     <!-- URLs and flags related -->
     <string name="server_url"></string>
     <bool name="show_server_url_input">true</bool>
@@ -25,12 +25,12 @@
     <!-- Requires server url to be set -->
     <string name="server_input_type">regular</string>
     <bool name="show_welcome_link">true</bool>
-    <string name="welcome_link_url">"https://nextcloud.com/providers"</string>
+	<string name="welcome_link_url">"https://nextcloud.com/providers"</string>
 
     <!-- Flags to setup the authentication methods available in the app -->
     <string name="auth_method_oauth2">off</string>
     <string name="auth_method_saml_web_sso">off</string>
-
+    
     <!-- Flags to enable/disable some features -->
     <string name="send_files_to_other_apps">on</string>
     <bool name="share_via_link_feature">true</bool>
@@ -48,9 +48,9 @@
     <array name="whatsnew_urls"></array>
 
     <!-- Colors -->
-    <color name="primary">#99CC00</color>
-    <color name="primary_dark">#4d6600</color>
-    <color name="color_accent">#99CC00</color>
+    <color name="primary">#0082c9</color>
+    <color name="primary_dark">#006AA3</color>
+    <color name="color_accent">#007CC2</color>
     <color name="login_text_color">@color/white</color>
     <color name="login_text_hint_color">#7fC0E3</color>
     <color name="background_color">#FFFFFF</color>
@@ -69,7 +69,7 @@
     <color name="selected_item_background">#ECECEC</color>
 
     <!-- Multiaccount support -->
-    <bool name="multiaccount_support">false</bool>
+    <bool name="multiaccount_support">true</bool>
 
     <!-- Drawer options -->
     <bool name="recently_added_enabled">false</bool>
@@ -90,13 +90,13 @@
     <bool name="passcode_enabled">true</bool>
     <bool name="show_hidden_files_enabled">true</bool>
     <bool name="davdroid_integration_enabled">true</bool>
-    <bool name="help_enabled">false</bool>
+    <bool name="help_enabled">true</bool>
     <string name="url_help">https://help.nextcloud.com/c/feature</string>
     <bool name="privacy_enabled">true</bool>
     <string name="privacy_url">https://nextcloud.com/privacy</string>
     <bool name="imprint_enabled">false</bool>
-    <bool name="recommend_enabled">false</bool>
-    <bool name="feedback_enabled">false</bool>
+    <bool name="recommend_enabled">true</bool>
+    <bool name="feedback_enabled">true</bool>
     <bool name="logger_enabled">false</bool>
     <bool name="sourcecode_enabled">true</bool>
     <string name="sourcecode_url" translatable="false">https://github.com/nextcloud/android</string>
@@ -118,7 +118,7 @@
     <string name="mail_logger"></string>
 
     <!-- Determine is participate enabled -->
-    <bool name="participate_enabled">false</bool>
+    <bool name="participate_enabled">true</bool>
     <!-- Participate links -->
     <string name="fdroid_beta_link" translatable="false">https://f-droid.org/repository/browse/?fdid=com.nextcloud.android.beta</string>
     <string name="beta_apk_link" translatable="false">https://download.nextcloud.com/android/dev/latest.apk</string>
@@ -134,8 +134,7 @@
     <string name="login_data_own_scheme" translatable="false">nc</string>
     <!-- url for webview login, with the protocol prefix
     If set, will replace all other login methods available -->
-    <string name="webview_login_url" translatable="false">https://nextcloud.kaminsky.me</string>
-    <!--<string name="webview_login_url" translatable="false"></string>-->
+    <string name="webview_login_url" translatable="false"></string>
 
     <!-- analytics enabled -->
     <bool name="analytics_enabled">false</bool>
@@ -146,3 +145,5 @@
     <!-- Push server url -->
     <string name="push_server_url" translatable="false"></string>
 </resources>
+
+
