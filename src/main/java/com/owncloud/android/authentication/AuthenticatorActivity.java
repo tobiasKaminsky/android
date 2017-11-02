@@ -368,13 +368,17 @@ public class AuthenticatorActivity extends AccountAuthenticatorActivity
         mLoginWebView.getSettings().setSaveFormData(false);
         mLoginWebView.getSettings().setSavePassword(false);
 
+        Map<String, String> headers = new HashMap<>();
+        headers.put(RemoteOperation.OCS_API_HEADER, RemoteOperation.OCS_API_HEADER_VALUE);
+        
+        String url;
         if (baseURL != null && !baseURL.isEmpty()){
-            Map<String, String> headers = new HashMap<>();
-            headers.put(RemoteOperation.OCS_API_HEADER, RemoteOperation.OCS_API_HEADER_VALUE);
-            mLoginWebView.loadUrl(baseURL + WEB_LOGIN, headers);
+            url = baseURL;
         } else {
-            mLoginWebView.loadUrl(getResources().getString(R.string.webview_login_url));
+            url = getResources().getString(R.string.webview_login_url);
         }
+        
+        mLoginWebView.loadUrl(url + WEB_LOGIN, headers);
 
         mLoginWebView.setWebViewClient(new WebViewClient() {
             @Override
@@ -1449,9 +1453,15 @@ public class AuthenticatorActivity extends AccountAuthenticatorActivity
 
         if (!mServerIsValid) {
             // hide old login
-            mOkButton.setVisibility(View.GONE);
-            mUsernameInputLayout.setVisibility(View.GONE);
-            mPasswordInputLayout.setVisibility(View.GONE);
+            if (mOkButton != null) {
+                mOkButton.setVisibility(View.GONE);
+            }
+            if (mUsernameInputLayout != null) {
+                mUsernameInputLayout.setVisibility(View.GONE);
+            }
+            if (mPasswordInputLayout != null) {
+                mPasswordInputLayout.setVisibility(View.GONE);
+            }
         }
 
 
