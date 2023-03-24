@@ -99,7 +99,6 @@ import com.owncloud.android.ui.asynctasks.FetchRemoteFileTask;
 import com.owncloud.android.ui.dialog.SendShareDialog;
 import com.owncloud.android.ui.dialog.SortingOrderDialogFragment;
 import com.owncloud.android.ui.dialog.StoragePermissionDialogFragment;
-import com.owncloud.android.ui.events.ChangeMenuEvent;
 import com.owncloud.android.ui.events.SearchEvent;
 import com.owncloud.android.ui.events.SyncEventFinished;
 import com.owncloud.android.ui.events.TokenPushEvent;
@@ -1165,13 +1164,8 @@ public class FileDisplayActivity extends FileActivity
     }
 
     private void setDrawerAllFiles() {
-        if (MainApp.isOnlyOnDevice()) {
-            setDrawerMenuItemChecked(R.id.nav_on_device);
-            setupToolbar();
-        } else {
-            setDrawerMenuItemChecked(R.id.nav_all_files);
-            setupHomeSearchToolbarWithSortAndListButtons();
-        }
+        setDrawerMenuItemChecked(R.id.nav_all_files);
+        setupHomeSearchToolbarWithSortAndListButtons();
     }
 
     public void initSyncBroadcastReceiver() {
