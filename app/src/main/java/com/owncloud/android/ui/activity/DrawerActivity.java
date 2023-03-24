@@ -439,9 +439,6 @@ public abstract class DrawerActivity extends ToolbarActivity
                                menuItem.getItemId());
         } else if (itemId == R.id.nav_gallery) {
             startPhotoSearch(menuItem);
-        } else if (itemId == R.id.nav_on_device) {
-            EventBus.getDefault().post(new ChangeMenuEvent());
-            showFiles(true);
         } else if (itemId == R.id.nav_uploads) {
             startActivity(UploadListActivity.class, Intent.FLAG_ACTIVITY_CLEAR_TOP);
         } else if (itemId == R.id.nav_trashbin) {
