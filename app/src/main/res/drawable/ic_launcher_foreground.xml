@@ -1,33 +1,26 @@
-<!--
-  Nextcloud Android client application
-
-  Copyright (C) 2023 Andy Scherzinger
-  Copyright (C) 2023 Nextcloud.
-
-  This program is free software; you can redistribute it and/or
-  modify it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE
-  License as published by the Free Software Foundation; either
-  version 3 of the License, or any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-  GNU AFFERO GENERAL PUBLIC LICENSE for more details.
-
-  You should have received a copy of the GNU Affero General Public
-  License along with this program. If not, see <http://www.gnu.org/licenses/>.
-  -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
-    android:viewportWidth="1594.7866"
-    android:viewportHeight="1594.7866">
-    <group
-        android:translateX="265.39328"
-        android:translateY="280.15982">
-        <path
-            android:pathData="M532.68,320.01C439.33,320.02 360.95,383.94 336.99,469.92 316.09,423.93 270.08,391.34 216.62,391.33 143.84,391.34 84.01,451.18 84,523.96c-0.01,72.79 59.83,132.65 132.62,132.65 53.47,-0.01 99.45,-32.62 120.35,-78.62 23.94,86 102.35,149.94 195.72,149.95 92.84,0.01 170.84,-63.23 195.28,-148.5 21.24,45.15 66.55,77.17 119.39,77.17 72.8,0.01 132.65,-59.85 132.64,-132.65 -0.01,-72.79 -59.86,-132.64 -132.64,-132.63 -52.85,0.01 -98.18,32.02 -119.42,77.17 -24.44,-85.27 -102.41,-148.51 -195.25,-148.5zM532.68,397.86c70.11,0 126.11,55.99 126.11,126.1 0,70.12 -56,126.13 -126.11,126.13 -70.11,-0.01 -126.09,-56.01 -126.09,-126.13 0.01,-70.1 55.99,-126.09 126.09,-126.1zM216.6,469.19c30.71,0 54.76,24.06 54.77,54.77 0,30.72 -24.05,54.79 -54.77,54.8 -30.72,0 -54.77,-24.08 -54.77,-54.8 0,-30.71 24.06,-54.77 54.77,-54.77zM847.36,469.19c30.71,-0.01 54.79,24.05 54.79,54.77 0.01,30.73 -24.07,54.8 -54.79,54.8 -30.72,0 -54.77,-24.08 -54.77,-54.8 0,-30.71 24.06,-54.77 54.77,-54.77z"
-            android:fillColor="#ffffff"
-            android:fillType="nonZero" />
-    </group>
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+  <group android:scaleX="0.56214166"
+      android:scaleY="0.56214166"
+      android:translateX="27.631132"
+      android:translateY="36.502815">
+    <path
+        android:pathData="M28.119,39.6221a3.7,3.7 0,0 0,-1.537 -2.355,3.64 3.64,0 0,0 -2.063,-0.641 3.671,3.671 0,1 0,3.6 3Z"
+        android:fillColor="#9d1d96"/>
+    <path
+        android:pathData="M42.288,33.0341a6.392,6.392 0,0 1,-3.879 -1.443l-8.783,4.853a6.4,6.4 0,0 1,1.185 2.676h0a6.385,6.385 0,0 1,-0.868 4.564l9.921,2.044a6.429,6.429 0,0 1,3.849 -5.149Z"
+        android:fillColor="#9d1d96"/>
+    <path
+        android:pathData="M42.47,30.304a3.676,3.676 0,1 0,-3.677 -3.676A3.681,3.681 0,0 0,42.47 30.304Z"
+        android:fillColor="#9d1d96"/>
+    <path
+        android:pathData="M46.234,42.803a3.677,3.677 0,1 0,3.677 3.678A3.682,3.682 0,0 0,46.234 42.803Z"
+        android:fillColor="#9d1d96"/>
+    <path
+        android:pathData="M55.007,24.311l-3.9,-3.9 -20.409,-20.409 -30.7,30.7 30.7,30.7h61.411ZM46.234,52.8981a6.421,6.421 0,0 1,-6.052 -4.305l-12.689,-2.615a6.411,6.411 0,1 1,-0.132 -11.409l9.337,-5.159a6.411,6.411 0,1 1,8.284 3.123l1.425,7.543a6.412,6.412 0,0 1,-0.173 12.823Z"
+        android:fillColor="#9d1d96"/>
+  </group>
 </vector>

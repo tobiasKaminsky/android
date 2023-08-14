@@ -127,29 +127,29 @@ android {
         productFlavors {
             // used for f-droid
             generic {
-                applicationId 'com.nextcloud.client'
+                applicationId 'me.kaminsky.cloud.android.client'
                 dimension "default"
             }
 
             gplay {
-                applicationId 'com.nextcloud.client'
+                applicationId 'me.kaminsky.cloud.android.client'
                 dimension "default"
             }
 
             huawei {
-                applicationId 'com.nextcloud.client'
+                applicationId 'me.kaminsky.cloud.android.client'
                 dimension "default"
             }
 
             versionDev {
-                applicationId "com.nextcloud.android.beta"
+                applicationId 'me.kaminsky.cloud.android.client'
                 dimension "default"
                 versionCode 20220322
                 versionName "20220322"
             }
 
             qa {
-                applicationId "com.nextcloud.android.qa"
+                applicationId 'me.kaminsky.cloud.android.client'
                 dimension "default"
                 versionCode 1
                 versionName "1"
