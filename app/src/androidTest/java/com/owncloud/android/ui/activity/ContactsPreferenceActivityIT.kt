@@ -1,38 +1,26 @@
 /*
+ * Nextcloud - Android Client
  *
- * Nextcloud Android client application
- *
- * @author Tobias Kaminsky
- * Copyright (C) 2020 Tobias Kaminsky
- * Copyright (C) 2020 Nextcloud GmbH
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2020 Tobias Kaminsky <tobias@kaminsky.me>
+ * SPDX-FileCopyrightText: 2020 Nextcloud GmbH
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.ui.activity
 
 import android.content.Intent
-import androidx.test.espresso.intent.rule.IntentsTestRule
+import androidx.test.core.app.launchActivity
+import androidx.test.espresso.Espresso.onView
+import androidx.test.espresso.assertion.ViewAssertions.matches
+import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
+import androidx.test.espresso.matcher.ViewMatchers.isRoot
 import com.owncloud.android.AbstractIT
 import com.owncloud.android.datamodel.OCFile
 import com.owncloud.android.utils.ScreenshotTest
 import org.junit.Assert.assertTrue
-import org.junit.Rule
 import org.junit.Test
 
 class ContactsPreferenceActivityIT : AbstractIT() {
-    @get:Rule
-    var activityRule = IntentsTestRule(ContactsPreferenceActivity::class.java, true, false)
+    private val testClassName = "com.owncloud.android.ui.activity.ContactsPreferenceActivityIT"
 
     @Test
     @ScreenshotTest
@@ -43,23 +31,31 @@ class ContactsPreferenceActivityIT : AbstractIT() {
 
         assertTrue(vcfFile.isDown)
 
-        val intent = Intent()
-        intent.putExtra(ContactsPreferenceActivity.EXTRA_FILE, vcfFile)
-        intent.putExtra(ContactsPreferenceActivity.EXTRA_USER, user)
-        val sut = activityRule.launchActivity(intent)
+        val intent = Intent(targetContext, ContactsPreferenceActivity::class.java).apply {
+            putExtra(ContactsPreferenceActivity.EXTRA_FILE, vcfFile)
+            putExtra(ContactsPreferenceActivity.EXTRA_USER, user)
+        }
 
-        shortSleep()
+        launchActivity<ContactsPreferenceActivity>(intent).use { scenario ->
+            val screenShotName = createName(testClassName + "_" + "openVCF", "")
+            onView(isRoot()).check(matches(isDisplayed()))
 
-        screenshot(sut)
+            scenario.onActivity { sut ->
+                screenshotViaName(sut, screenShotName)
+            }
+        }
     }
 
     @Test
     @ScreenshotTest
     fun openContactsPreference() {
-        val sut = activityRule.launchActivity(null)
+        launchActivity<ContactsPreferenceActivity>().use { scenario ->
+            val screenShotName = createName(testClassName + "_" + "openContactsPreference", "")
+            onView(isRoot()).check(matches(isDisplayed()))
 
-        shortSleep()
-
-        screenshot(sut)
+            scenario.onActivity { sut ->
+                screenshotViaName(sut, screenShotName)
+            }
+        }
     }
 }

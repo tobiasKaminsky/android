@@ -1,5 +1,10 @@
+/*
+ * Nextcloud - Android Client
+ *
+ * SPDX-FileCopyrightText: 2018 Tobias Kaminsky <tobias@kaminsky.me>
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
+ */
 package com.owncloud.android.ui.fragment;
-
 
 import android.annotation.SuppressLint;
 import android.os.Bundle;
@@ -7,9 +12,9 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.webkit.WebView;
-import android.webkit.WebViewClient;
 
 import com.owncloud.android.R;
+import com.owncloud.android.ui.SafeWebViewClient;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -46,7 +51,7 @@ public class FeatureWebFragment extends Fragment {
         webView.getSettings().setJavaScriptEnabled(true);
         webView.getSettings().setDomStorageEnabled(true);
         webView.getSettings().setAllowFileAccess(false);
-        webView.setWebViewClient(new WebViewClient());
+        webView.setWebViewClient(new SafeWebViewClient());
         webView.loadUrl(mWebUrl);
 
         return v;

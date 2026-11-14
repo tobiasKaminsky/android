@@ -1,0 +1,19 @@
+Platforma de productivitate găzduită pe propriul server, care te lasă pe tine la control.
+
+Funcționalități:
+* Interfață simplă și modernă, adaptată temei serverului tău
+* Încarcă fișiere pe serverul tău Nextcloud
+* Partajează-le cu alții
+* Păstrează sincronizate fișierele și dosarele favorite
+* Caută în toate dosarele de pe server
+* Încărcare automată pentru fotografiile și videoclipurile făcute cu dispozitivul
+* Rămâi la curent prin notificări
+* Suport pentru mai multe conturi
+* Acces securizat la date cu amprentă sau PIN
+* Integrare cu DAVx⁵ (cunoscut anterior ca DAVdroid) pentru configurarea ușoară a sincronizării calendarului și a contactelor
+
+Raportează problemele la https://github.com/nextcloud/android/issues și discută despre această aplicație la https://help.nextcloud.com/c/clients/android
+
+Nou în Nextcloud? Nextcloud este un server privat de sincronizare și partajare a fișierelor și de comunicare. Este software liber, pe care îl poți găzdui singur sau poți plăti o companie să o facă pentru tine. Astfel, tu deții controlul asupra fotografiilor, calendarului, contactelor, documentelor și a tot restul.
+
+Descoperă Nextcloud la https://nextcloud.com

@@ -1,25 +1,10 @@
 /*
- * Nextcloud Android client application
+ * Nextcloud - Android Client
  *
- *  @author Álvaro Brey
- *  Copyright (C) 2023 Álvaro Brey
- *  Copyright (C) 2023 Nextcloud GmbH
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE
- * License as published by the Free Software Foundation; either
- * version 3 of the License, or any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU AFFERO GENERAL PUBLIC LICENSE for more details.
- *
- * You should have received a copy of the GNU Affero General Public
- * License along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * SPDX-FileCopyrightText: 2023 Álvaro Brey <alvaro@alvarobrey.com>
+ * SPDX-FileCopyrightText: 2023 Nextcloud GmbH
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
-
 package com.nextcloud.client.database.migrations
 
 import androidx.room.migration.Migration
@@ -35,7 +20,7 @@ import com.nextcloud.client.database.migrations.DatabaseMigrationUtil.TYPE_TEXT
  */
 @Suppress("MagicNumber")
 class Migration67to68 : Migration(67, 68) {
-    override fun migrate(database: SupportSQLiteDatabase) {
+    override fun migrate(db: SupportSQLiteDatabase) {
         val tableName = "filelist"
         val newTableTempName = "${tableName}_new"
         val newColumns = mapOf(
@@ -85,7 +70,7 @@ class Migration67to68 : Migration(67, 68) {
             "lock_token" to TYPE_TEXT
         )
 
-        DatabaseMigrationUtil.migrateTable(database, "filelist", newColumns) { columnName ->
+        DatabaseMigrationUtil.migrateTable(db, "filelist", newColumns) { columnName ->
             when (columnName) {
                 "local_id" -> "IFNULL(local_id, -1)"
                 else -> columnName

@@ -1,48 +1,35 @@
 /*
- * Nextcloud Android client application
+ * Nextcloud - Android Client
  *
- * @author Chris Narkiewicz
- * Copyright (C) 2019 Chris Narkiewicz <hello@ezaquarii.com>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2019 Chris Narkiewicz <hello@ezaquarii.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.logger.ui
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.nextcloud.client.logger.LogEntry
 import com.owncloud.android.R
-import java.text.SimpleDateFormat
-import java.util.Locale
 
-class LogsAdapter(context: Context) : RecyclerView.Adapter<LogsAdapter.ViewHolder>() {
+class LogsAdapter(private val context: Context) : RecyclerView.Adapter<LogsAdapter.ViewHolder>() {
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        val header = view.findViewById<TextView>(R.id.log_entry_list_item_header)
-        val message = view.findViewById<TextView>(R.id.log_entry_list_item_message)
+        val header: TextView? = view.findViewById(R.id.log_entry_list_item_header)
+        val message: TextView? = view.findViewById(R.id.log_entry_list_item_message)
     }
 
-    private val timestampFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
     private val inflater = LayoutInflater.from(context)
 
     var entries: List<LogEntry> = listOf()
+        @SuppressLint("NotifyDataSetChanged")
         set(value) {
-            field = value
+            field = value.sortedBy { it.timestamp }
             notifyDataSetChanged()
         }
 
@@ -52,10 +39,14 @@ class LogsAdapter(context: Context) : RecyclerView.Adapter<LogsAdapter.ViewHolde
     override fun getItemCount() = entries.size
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val reversedPosition = entries.size - position - 1
-        val entry = entries[reversedPosition]
-        val header = "${timestampFormat.format(entry.timestamp)} ${entry.level.tag} ${entry.tag}"
-        holder.header.text = header
-        holder.message.text = entry.message
+        val entry = entries[position]
+        val header = "${entry.timestamp.time} ${entry.level.tag} ${entry.tag}"
+        val entryColor = ContextCompat.getColor(context, entry.level.getColor())
+
+        holder.header?.setTextColor(entryColor)
+        holder.header?.text = header
+
+        holder.message?.setTextColor(entryColor)
+        holder.message?.text = entry.message
     }
 }

@@ -1,19 +1,9 @@
 /*
- * Nextcloud Android client application
+ * Nextcloud - Android Client
  *
- * Copyright (C) 2016 Nextcloud
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2+,
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2016 Andy Scherzinger <info@andy-scherzinger.de>
+ * SPDX-FileCopyrightText: 2016 Nextcloud
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.utils;
 
@@ -32,6 +22,7 @@ public final class MimeType {
     public static final String TEXT_PLAIN = "text/plain";
     public static final String FILE = "application/octet-stream";
     public static final String PDF = "application/pdf";
+    public static final String MP4 = "video/mp4";
 
     private MimeType() {
         // No instance

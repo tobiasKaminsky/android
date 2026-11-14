@@ -5,24 +5,19 @@
  *   Copyright (C) 2016 Tobias Kaminsky
  *   Copyright (C) 2016 Nextcloud
  *
- *   This program is free software; you can redistribute it and/or
- *   modify it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE
- *   License as published by the Free Software Foundation; either
- *   version 3 of the License, or any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU AFFERO GENERAL PUBLIC LICENSE for more details.
- *
- *   You should have received a copy of the GNU Affero General Public
- *   License along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 
 package com.owncloud.android.datamodel;
 
+import com.nextcloud.client.device.PowerManagementService;
+import com.nextcloud.client.network.ConnectivityService;
+import com.nextcloud.client.preferences.SubFolderRule;
+import com.nextcloud.utils.extensions.SyncedFolderExtensionsKt;
 import com.owncloud.android.files.services.NameCollisionPolicy;
+import com.owncloud.android.utils.MimeTypeUtil;
 
+import java.io.File;
 import java.io.Serializable;
 
 /**
@@ -31,7 +26,10 @@ import java.io.Serializable;
 public class SyncedFolder implements Serializable, Cloneable {
     public static final long UNPERSISTED_ID = Long.MIN_VALUE;
     public static final long EMPTY_ENABLED_TIMESTAMP_MS = -1;
+    public static final long NOT_SCANNED_YET = -1;
     private static final long serialVersionUID = -793476118299906429L;
+
+
 
     private long id;
     private String localPath;
@@ -47,6 +45,9 @@ public class SyncedFolder implements Serializable, Cloneable {
     private long enabledTimestampMs;
     private MediaFolderType type;
     private boolean hidden;
+    private SubFolderRule subfolderRule;
+    private boolean excludeHidden;
+    private long lastScanTimestampMs;
 
     /**
      * constructor for new, to be persisted entity.
@@ -64,6 +65,8 @@ public class SyncedFolder implements Serializable, Cloneable {
      * @param timestampMs         the current timestamp in milliseconds
      * @param type                the type of the folder
      * @param hidden              hide item flag
+     * @param subFolderRule   whether to filter subFolder by year/month/day
+     * @param excludeHidden   exclude hidden file or folder, for {@link MediaFolderType#CUSTOM} only
      */
     public SyncedFolder(String localPath,
                         String remotePath,
@@ -77,7 +80,10 @@ public class SyncedFolder implements Serializable, Cloneable {
                         boolean enabled,
                         long timestampMs,
                         MediaFolderType type,
-                        boolean hidden) {
+                        boolean hidden,
+                        SubFolderRule subFolderRule,
+                        boolean excludeHidden,
+                        long lastScanTimestampMs) {
         this(UNPERSISTED_ID,
              localPath,
              remotePath,
@@ -91,7 +97,10 @@ public class SyncedFolder implements Serializable, Cloneable {
              enabled,
              timestampMs,
              type,
-             hidden);
+             hidden,
+             subFolderRule,
+             excludeHidden,
+             lastScanTimestampMs);
     }
 
     /**
@@ -99,7 +108,7 @@ public class SyncedFolder implements Serializable, Cloneable {
      *
      * @param id id
      */
-    protected SyncedFolder(long id,
+    public SyncedFolder(long id,
                            String localPath,
                            String remotePath,
                            boolean wifiOnly,
@@ -112,7 +121,10 @@ public class SyncedFolder implements Serializable, Cloneable {
                            boolean enabled,
                            long timestampMs,
                            MediaFolderType type,
-                           boolean hidden) {
+                           boolean hidden,
+                           SubFolderRule subFolderRule,
+                           boolean excludeHidden,
+                           long lastScanTimestampMs) {
         this.id = id;
         this.localPath = localPath;
         this.remotePath = remotePath;
@@ -126,6 +138,9 @@ public class SyncedFolder implements Serializable, Cloneable {
         this.setEnabled(enabled, timestampMs);
         this.type = type;
         this.hidden = hidden;
+        this.subfolderRule = subFolderRule;
+        this.excludeHidden = excludeHidden;
+        this.lastScanTimestampMs = lastScanTimestampMs;
     }
 
     /**
@@ -164,7 +179,29 @@ public class SyncedFolder implements Serializable, Cloneable {
         return this.chargingOnly;
     }
 
-    public boolean isExisting() {
+    /**
+     * Indicates whether the "Also upload existing files" option is enabled for this folder.
+     *
+     * <p>
+     * This flag controls how files in the folder are treated when auto-upload is enabled:
+     * <ul>
+     *     <li>If {@code true} (existing files are included):
+     *         <ul>
+     *             <li>All files in the folder, regardless of creation date, will be uploaded.</li>
+     *         </ul>
+     *     </li>
+     *     <li>If {@code false} (existing files are skipped):
+     *         <ul>
+     *             <li>Only files created or added after the folder was enabled will be uploaded.</li>
+     *             <li>Files that existed before enabling will be skipped, based on their creation time.</li>
+     *         </ul>
+     *     </li>
+     * </ul>
+     * </p>
+     *
+     * @return {@code true} if existing files should also be uploaded, {@code false} otherwise
+     */
+    public boolean alsoUploadExistingFiles() {
         return this.existing;
     }
 
@@ -203,6 +240,8 @@ public class SyncedFolder implements Serializable, Cloneable {
     public boolean isHidden() {
         return this.hidden;
     }
+
+    public SubFolderRule getSubfolderRule() { return this.subfolderRule; }
 
     public void setId(long id) {
         this.id = id;
@@ -250,5 +289,55 @@ public class SyncedFolder implements Serializable, Cloneable {
 
     public void setHidden(boolean hidden) {
         this.hidden = hidden;
+    }
+
+    public void setSubFolderRule(SubFolderRule subFolderRule) { this.subfolderRule = subFolderRule; }
+
+    public boolean isExcludeHidden() {
+        return excludeHidden;
+    }
+
+    public void setExcludeHidden(boolean excludeHidden) {
+        this.excludeHidden = excludeHidden;
+    }
+
+    /**
+     * Determines whether the given file:
+     * <ul>
+     *     <li>Exists under the configured {@code localPath}</li>
+     *     <li>Matches the expected media type of this folder</li>
+     * </ul>
+     *
+     * @param file the file to validate
+     * @param filePath the absolute path of the file e.g. /storage/emulated/0/DCIM/Camera/document.pdf
+     * @return {@code true} if the file is located under {@code localPath}
+     *         and matches the folder's media type; {@code false} otherwise
+     */
+    public boolean isFileInFolderWithCorrectMediaType(File file, String filePath) {
+        if (filePath == null || filePath.isEmpty() || localPath == null || localPath.isEmpty()) {
+            return false;
+        }
+
+        String normalizedLocal = localPath.endsWith(File.separator)
+            ? localPath
+            : localPath + File.separator;
+
+        boolean isInLocalDirectory = filePath.startsWith(normalizedLocal);
+
+        boolean isCorrectMediaType =
+            (getType() == MediaFolderType.IMAGE && MimeTypeUtil.isImage(file)) ||
+                (getType() == MediaFolderType.VIDEO && MimeTypeUtil.isVideo(file)) ||
+                getType() == MediaFolderType.CUSTOM;
+
+        return isInLocalDirectory && isCorrectMediaType;
+    }
+
+    public long getLastScanTimestampMs() { return lastScanTimestampMs; }
+
+    public void setLastScanTimestampMs(long lastScanTimestampMs) { this.lastScanTimestampMs = lastScanTimestampMs; }
+
+    public long getTotalScanInterval(ConnectivityService connectivityService, PowerManagementService powerManagementService) {
+        final var calculatedScanInterval = SyncedFolderExtensionsKt.calculateScanInterval(this, connectivityService, powerManagementService);
+        return lastScanTimestampMs + calculatedScanInterval.getFirst();
     }
 }

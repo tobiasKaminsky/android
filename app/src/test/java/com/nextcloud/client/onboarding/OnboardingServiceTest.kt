@@ -1,26 +1,16 @@
-/* Nextcloud Android client application
+/*
+ * Nextcloud - Android Client
  *
- * @author Chris Narkiewicz
- * Copyright (C) 2019 Chris Narkiewicz <hello@ezaquarii.com>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2019 Chris Narkiewicz <hello@ezaquarii.com>
+ * SPDX-FileCopyrightText: 2024 TSI-mc <surinder.kumar@t-systems.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.onboarding
 
-import android.accounts.Account
 import android.content.res.Resources
+import com.nextcloud.client.account.AnonymousUser
 import com.nextcloud.client.account.CurrentAccountProvider
+import com.nextcloud.client.account.User
 import com.nextcloud.client.preferences.AppPreferences
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -42,7 +32,7 @@ class OnboardingServiceTest {
     private lateinit var currentAccountProvider: CurrentAccountProvider
 
     @Mock
-    private lateinit var account: Account
+    private lateinit var user: User
 
     private lateinit var onboardingService: OnboardingServiceImpl
 
@@ -55,13 +45,16 @@ class OnboardingServiceTest {
     @Test
     fun `first run flag toggles with current current account`() {
         // GIVEN
-        //      current account is not set
+        //      current account is anonymous
+        whenever(currentAccountProvider.user).thenReturn(AnonymousUser("dummy"))
+
+        // THEN
         //      first run flag is true
         assertTrue(onboardingService.isFirstRun)
 
         // WHEN
         //      current account is set
-        whenever(currentAccountProvider.currentAccount).thenReturn(account)
+        whenever(currentAccountProvider.user).thenReturn(user)
 
         // THEN
         //      first run flag toggles

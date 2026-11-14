@@ -1,11 +1,20 @@
+/*
+ * Nextcloud - Android Client
+ *
+ * SPDX-FileCopyrightText: 2021 Álvaro Brey <alvaro@alvarobrey.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
+ */
 package com.owncloud.android.ui.unifiedsearch
 
 import android.net.Uri
 import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
 import com.owncloud.android.datamodel.OCFile
 import com.owncloud.android.lib.common.SearchResultEntry
+import com.owncloud.android.ui.fragment.UnifiedSearchFragmentScreenState
 
 interface IUnifiedSearchViewModel {
+    val screenState: MutableLiveData<UnifiedSearchFragmentScreenState>
     val browserUri: LiveData<Uri>
     val error: LiveData<String>
     val file: LiveData<OCFile>
@@ -17,4 +26,7 @@ interface IUnifiedSearchViewModel {
     fun loadMore(provider: ProviderID)
     fun openResult(result: SearchResultEntry)
     fun setQuery(query: String)
+    fun openFile(remotePath: String)
+    fun getRemoteFile(remotePath: String)
+    fun updateScreenState(state: UnifiedSearchFragmentScreenState)
 }

@@ -1,22 +1,9 @@
 /*
- * Nextcloud Android client application
+ * Nextcloud - Android Client
  *
- * @author Chris Narkiewicz <hello@ezaquarii.com>
- * Copyright (C) 2020 Chris Narkiewicz
- * Copyright (C) 2020 Nextcloud GmbH
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2020 Chris Narkiewicz <hello@ezaquarii.com>
+ * SPDX-FileCopyrightText: 2020 Nextcloud GmbH
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.account
 
@@ -36,7 +23,9 @@ import java.net.URI
  * It serves as a semantically correct "empty value", allowing simplification of logic
  * in various components requiring user data, such as DB queries.
  */
-internal data class AnonymousUser(private val accountType: String) : User, Parcelable {
+internal data class AnonymousUser(private val accountType: String) :
+    User,
+    Parcelable {
 
     companion object {
         @JvmStatic
@@ -60,21 +49,22 @@ internal data class AnonymousUser(private val accountType: String) : User, Parce
     override val server = Server(URI.create(""), MainApp.MINIMUM_SUPPORTED_SERVER_VERSION)
     override val isAnonymous = true
 
-    override fun toPlatformAccount(): Account {
-        return Account(accountName, accountType)
-    }
+    @Deprecated(
+        "Temporary workaround: Legacy Android Account access. Refactor code to use User object " +
+            "directly instead of platform Account."
+    )
+    override fun toPlatformAccount(): Account = Account(accountName, accountType)
 
-    override fun toOwnCloudAccount(): OwnCloudAccount {
-        return OwnCloudAccount(Uri.EMPTY, OwnCloudBasicCredentials("", ""))
-    }
+    @Deprecated(
+        "Temporary workaround: Legacy OwnCloudAccount access. Refactor code to use User object " +
+            "directly instead of OwnCloudAccount."
+    )
+    override fun toOwnCloudAccount(): OwnCloudAccount = OwnCloudAccount(Uri.EMPTY, OwnCloudBasicCredentials("", ""))
 
-    override fun nameEquals(user: User?): Boolean {
-        return user?.accountName.equals(accountName, true)
-    }
+    override fun nameEquals(user: User?): Boolean = user?.accountName.equals(accountName, true)
 
-    override fun nameEquals(accountName: CharSequence?): Boolean {
-        return accountName?.toString().equals(this.accountType, true)
-    }
+    override fun nameEquals(accountName: CharSequence?): Boolean =
+        accountName?.toString().equals(this.accountType, true)
 
     override fun describeContents() = 0
 

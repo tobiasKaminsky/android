@@ -1,21 +1,8 @@
-/**
- * Nextcloud Android client application
+/*
+ * Nextcloud - Android Client
  *
- * @author Chris Narkiewicz
- * Copyright (C) 2020 Chris Narkiewicz <hello@ezaquarii.com>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2020 Chris Narkiewicz <hello@ezaquarii.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.core
 
@@ -32,9 +19,7 @@ import android.os.IBinder
  *
  * One can subclass it to create own service interaction API.
  */
-abstract class LocalConnection<S : Service>(
-    protected val context: Context
-) : ServiceConnection {
+abstract class LocalConnection<S : Service>(protected val context: Context) : ServiceConnection {
 
     private var serviceBinder: LocalBinder<S>? = null
     val service: S? get() = serviceBinder?.service
@@ -48,9 +33,7 @@ abstract class LocalConnection<S : Service>(
      *
      * @see [bind]
      */
-    protected open fun createBindIntent(): Intent? {
-        return null
-    }
+    protected open fun createBindIntent(): Intent? = null
 
     /**
      * Bind local service. If [createBindIntent] returns null, it no-ops.
@@ -95,6 +78,7 @@ abstract class LocalConnection<S : Service>(
         if (binder !is LocalBinder<*>) {
             throw IllegalStateException("Binder is not extending ${LocalBinder::class.java.name}")
         }
+        @Suppress("UNCHECKED_CAST") // Safe: type S guaranteed by service binding contract
         serviceBinder = binder as LocalBinder<S>
         onBound(binder)
     }

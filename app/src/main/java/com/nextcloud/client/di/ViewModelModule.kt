@@ -1,21 +1,10 @@
 /*
- * Nextcloud Android client application
+ * Nextcloud - Android Client
  *
- * @author Chris Narkiewicz
- * Copyright (C) 2019 Chris Narkiewicz <hello@ezaquarii.com>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2026 Alper Ozturk <alper.ozturk@nextcloud.com>
+ * SPDX-FileCopyrightText: 2024 TSI-mc <surinder.kumar@t-systems.com>
+ * SPDX-FileCopyrightText: 2019 Chris Narkiewicz <hello@ezaquarii.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.di
 
@@ -24,7 +13,12 @@ import androidx.lifecycle.ViewModelProvider
 import com.nextcloud.client.documentscan.DocumentScanViewModel
 import com.nextcloud.client.etm.EtmViewModel
 import com.nextcloud.client.logger.ui.LogsViewModel
+import com.nextcloud.client.player.ui.audio.AudioPlayerViewModel
 import com.nextcloud.ui.fileactions.FileActionsViewModel
+import com.nextcloud.ui.tags.TagManagementViewModel
+import com.nextcloud.ui.trashbinFileActions.TrashbinFileActionsViewModel
+import com.owncloud.android.ui.activity.filedisplayactivity.FileDisplayActivityViewModel
+import com.owncloud.android.ui.fragment.filedetail.FileDetailFragmentViewModel
 import com.owncloud.android.ui.preview.pdf.PreviewPdfViewModel
 import com.owncloud.android.ui.unifiedsearch.UnifiedSearchViewModel
 import dagger.Binds
@@ -64,5 +58,30 @@ abstract class ViewModelModule {
     abstract fun documentScanViewModel(vm: DocumentScanViewModel): ViewModel
 
     @Binds
+    @IntoMap
+    @ViewModelKey(TrashbinFileActionsViewModel::class)
+    abstract fun trashbinFileActionsViewModel(vm: TrashbinFileActionsViewModel): ViewModel
+
+    @Binds
+    @IntoMap
+    @ViewModelKey(TagManagementViewModel::class)
+    abstract fun tagManagementViewModel(vm: TagManagementViewModel): ViewModel
+
+    @Binds
+    @IntoMap
+    @ViewModelKey(AudioPlayerViewModel::class)
+    abstract fun audioPlayerViewModel(vm: AudioPlayerViewModel): ViewModel
+
+    @Binds
     abstract fun bindViewModelFactory(factory: ViewModelFactory): ViewModelProvider.Factory
+
+    @Binds
+    @IntoMap
+    @ViewModelKey(FileDisplayActivityViewModel::class)
+    abstract fun fileDisplayActivityViewModel(vm: FileDisplayActivityViewModel): ViewModel
+
+    @Binds
+    @IntoMap
+    @ViewModelKey(FileDetailFragmentViewModel::class)
+    abstract fun fileDetailFragmentViewModel(vm: FileDetailFragmentViewModel): ViewModel
 }

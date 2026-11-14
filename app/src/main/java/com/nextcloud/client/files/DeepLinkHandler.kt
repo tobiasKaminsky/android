@@ -1,21 +1,8 @@
 /*
- * Nextcloud Android client application
+ * Nextcloud - Android Client
  *
- * @author Chris Narkiewicz
- * Copyright (C) 2020 Chris Narkiewicz <hello@ezaquarii.com>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2020 Chris Narkiewicz <hello@ezaquarii.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.files
 
@@ -31,9 +18,7 @@ import com.nextcloud.client.account.UserAccountManager
  *       [com.nextcloud.client.mixins.ActivityMixin] and handle UI callbacks as well
  */
 @Suppress("ForbiddenComment")
-class DeepLinkHandler(
-    private val userAccountManager: UserAccountManager
-) {
+class DeepLinkHandler(private val userAccountManager: UserAccountManager) {
 
     /**
      * Provide parsed link arguments and context information required
@@ -43,9 +28,9 @@ class DeepLinkHandler(
 
     companion object {
         val DEEP_LINK_PATTERN = Regex("""(.*?)(/index\.php)?/f/([0-9]+)$""")
-        val BASE_URL_GROUP_INDEX = 1
-        val INDEX_PATH_GROUP_INDEX = 2
-        val FILE_ID_GROUP_INDEX = 3
+        const val BASE_URL_GROUP_INDEX = 1
+        const val INDEX_PATH_GROUP_INDEX = 2
+        const val FILE_ID_GROUP_INDEX = 3
     }
 
     /**

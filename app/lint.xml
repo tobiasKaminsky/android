@@ -1,4 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Nextcloud - Android Client
+  ~ 
+  ~ SPDX-FileCopyrightText: 2022-2024 Nextcloud GmbH and Nextcloud contributors
+  ~ SPDX-FileCopyrightText: 2022 Andy Scherzinger <info@andy-scherzinger.de>
+  ~ SPDX-FileCopyrightText: 2022 Álvaro Brey <alvaro@alvarobrey.com>
+  ~ SPDX-FileCopyrightText: 2022 Tobias Kaminsky <tobias@kaminsky.me>
+  ~ SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
+-->
 <lint>
     <issue id="UnusedAttribute">
         <ignore regexp="importantForAutofill"/>
@@ -6,23 +15,30 @@
     </issue>
     <issue id="InvalidPackage">
         <ignore path="**/freemarker-2.*.*.jar" />
-        <ignore path="**/nnio-0.2.jar"/>
         <ignore path="**/bcpkix-jdk15on-1.69.jar" />
     </issue>
 
     <issue id="UnusedResources">
         <ignore regexp="store_short_desc|store_full_desc|store_short_dev_desc|store_full_dev_desc" />
         <ignore
-            regexp="screenshot_01_gridView|screenshot_02_listView|screenshot_03_drawer|screenshot_04_accounts|screenshot_05_autoUpload|screenshot_06_davdroid"/>
-        <ignore path="**/raw/encryption_key_words.txt" />
+            regexp="screenshot_01_gridView|screenshot_02_listView|screenshot_03_drawer|screenshot_04_accounts|screenshot_05_autoUpload|screenshot_06_davdroid" />
+        <ignore path="**/drawable/zdc_*.xml" />
+		<ignore path="**/drawable/iconclose.xml" />
+    </issue>
+
+    <issue id="ImpliedQuantity">
+        <ignore path="**/values-**/strings.xml" />
     </issue>
 
     <issue id="MissingQuantity">
-        <ignore path="**/values-ka-rGE/strings.xml"/>
-        <ignore path="**/values-ar/strings.xml" />
+        <ignore path="**/values-**/strings.xml" />
     </issue>
 
     <issue id="UnusedQuantity">
+        <ignore path="**/values-**/strings.xml" />
+    </issue>
+
+    <issue id="PluralsCandidate">
         <ignore path="**/values-**/strings.xml" />
     </issue>
 
@@ -47,7 +63,8 @@
 
     <issue id="TrustAllX509TrustManager">
         <ignore path="**/bouncycastle/est/jcajce/*.class" />
-        <ignore path="**/bcpkix-jdk15to18-1.72.jar" />
+        <ignore path="**/bcpkix-jdk15to18-1.**.jar" />
+        <ignore path="**/bcpkix-jdk18on-1.**.jar" />
     </issue>
 
     <issue id="RestrictedApi" severity="error">
@@ -55,6 +72,11 @@
     </issue>
 
     <issue id="NewApi" severity="error">
+        <ignore path="build" />
+    </issue>
+
+    <!-- Dagger factories generated for media3 @UnstableApi types cannot carry an @OptIn annotation. -->
+    <issue id="UnsafeOptInUsageError" severity="error">
         <ignore path="build" />
     </issue>
 
@@ -66,5 +88,14 @@
         <ignore path="**/jetified-annotation-experimental-1.**/**/lint.jar" />
         <ignore path="**/jetified-firebase-installations**/**/lint.jar" />
         <ignore path="**/appcompat-1.**/**/lint.jar" />
+    </issue>
+
+    <!-- Lint reads abiFilters as source text and cannot resolve allAbis; local debug builds skip x86 on purpose. -->
+    <issue id="ChromeOsAbiSupport">
+        <ignore path="build.gradle.kts" />
+    </issue>
+
+	<issue id="Aligned16KB">
+        <ignore path="**/arm64-v8a/libmockkjvmtiagent.so" />
     </issue>
 </lint>

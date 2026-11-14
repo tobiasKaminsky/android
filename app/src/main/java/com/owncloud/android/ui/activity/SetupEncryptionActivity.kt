@@ -1,47 +1,36 @@
 /*
+ * Nextcloud - Android Client
  *
- * Nextcloud Android client application
- *
- * @author Tobias Kaminsky
- * Copyright (C) 2022 Tobias Kaminsky
- * Copyright (C) 2022 Nextcloud GmbH
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2022 Tobias Kaminsky <tobias@kaminsky.me>
+ * SPDX-FileCopyrightText: 2022 Nextcloud GmbH
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
-
 package com.owncloud.android.ui.activity
 
 import android.content.Intent
 import android.os.Bundle
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.nextcloud.client.account.User
+import com.nextcloud.utils.SnackbarUtil
+import com.nextcloud.utils.extensions.getParcelableArgument
 import com.owncloud.android.R
-import com.owncloud.android.ui.dialog.SetupEncryptionDialogFragment
+import com.owncloud.android.ui.dialog.setupEncryption.SetupEncryptionDialogFragment
 
+/**
+ * Only needed for SettingsActivity
+ */
 class SetupEncryptionActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val user = intent?.getParcelableExtra("EXTRA_USER") as User?
+        val user = intent?.getParcelableArgument("EXTRA_USER", User::class.java)
 
         if (user == null) {
-            Toast.makeText(this, getString(R.string.error_showing_encryption_dialog), Toast.LENGTH_LONG).show()
+            SnackbarUtil.show(this, R.string.error_showing_encryption_dialog)
             finish()
         }
 
-        val setupEncryptionDialogFragment = SetupEncryptionDialogFragment.newInstance(user, -1)
+        val setupEncryptionDialogFragment = SetupEncryptionDialogFragment.newInstance(user, null, null)
         supportFragmentManager.setFragmentResultListener(
             SetupEncryptionDialogFragment.RESULT_REQUEST_KEY,
             this
@@ -59,16 +48,14 @@ class SetupEncryptionActivity : AppCompatActivity() {
         setupEncryptionDialogFragment.show(supportFragmentManager, "setup_encryption")
     }
 
-    private fun buildResultIntentFromBundle(result: Bundle): Intent {
-        val intent = Intent()
-        intent.putExtra(
+    private fun buildResultIntentFromBundle(result: Bundle): Intent = Intent().apply {
+        putExtra(
             SetupEncryptionDialogFragment.SUCCESS,
             result.getBoolean(SetupEncryptionDialogFragment.SUCCESS)
         )
-        intent.putExtra(
-            SetupEncryptionDialogFragment.ARG_POSITION,
-            result.getInt(SetupEncryptionDialogFragment.ARG_POSITION)
+        putExtra(
+            SetupEncryptionDialogFragment.ARG_FILE_PATH,
+            result.getInt(SetupEncryptionDialogFragment.ARG_FILE_PATH)
         )
-        return intent
     }
 }

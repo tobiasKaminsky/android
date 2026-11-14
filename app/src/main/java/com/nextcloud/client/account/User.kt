@@ -1,22 +1,9 @@
 /*
- * Nextcloud Android client application
+ * Nextcloud - Android Client
  *
- * @author Chris Narkiewicz <hello@ezaquarii.com>
- * Copyright (C) 2020 Chris Narkiewicz
- * Copyright (C) 2020 Nextcloud GmbH
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2020 Chris Narkiewicz <hello@ezaquarii.com>
+ * SPDX-FileCopyrightText: 2020 Nextcloud GmbH
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.account
 
@@ -24,7 +11,9 @@ import android.accounts.Account
 import android.os.Parcelable
 import com.owncloud.android.lib.common.OwnCloudAccount
 
-interface User : Parcelable, com.nextcloud.common.User {
+interface User :
+    Parcelable,
+    com.nextcloud.common.User {
     override val accountName: String
     val server: Server
     val isAnonymous: Boolean
@@ -38,7 +27,10 @@ interface User : Parcelable, com.nextcloud.common.User {
      *
      * @return Account instance that is associated with this User object.
      */
-    @Deprecated("Temporary workaround")
+    @Deprecated(
+        "Temporary workaround: Legacy Android Account access. Refactor code to use User object " +
+            "directly instead of platform Account."
+    )
     override fun toPlatformAccount(): Account
 
     /**
@@ -50,7 +42,10 @@ interface User : Parcelable, com.nextcloud.common.User {
      *
      * @return OwnCloudAccount instance that is associated with this User object.
      */
-    @Deprecated("Temporary workaround")
+    @Deprecated(
+        "Temporary workaround: Legacy OwnCloudAccount access. Refactor code to use User object " +
+            "directly instead of OwnCloudAccount."
+    )
     fun toOwnCloudAccount(): OwnCloudAccount
 
     /**

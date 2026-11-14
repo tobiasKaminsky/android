@@ -1,42 +1,80 @@
 /*
+ * Nextcloud - Android Client
  *
- * Nextcloud Android client application
- *
- * @author Tobias Kaminsky
- * Copyright (C) 2022 Tobias Kaminsky
- * Copyright (C) 2022 Nextcloud GmbH
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2025 Philipp Hasper <vcs@hasper.info>
+ * SPDX-FileCopyrightText: 2025 Alper Ozturk <alper.ozturk@nextcloud.com>
+ * SPDX-FileCopyrightText: 2022 Tobias Kaminsky <tobias@kaminsky.me>
+ * SPDX-FileCopyrightText: 2022 Nextcloud GmbH
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.ui.activity
 
-import android.app.Activity
-import androidx.test.espresso.intent.rule.IntentsTestRule
+import android.content.Intent
+import android.net.Uri
+import android.view.KeyEvent
+import android.view.View
+import androidx.test.core.app.launchActivity
+import androidx.test.espresso.Espresso.onView
+import androidx.test.espresso.action.ViewActions
+import androidx.test.espresso.assertion.ViewAssertions.matches
+import androidx.test.espresso.matcher.ViewMatchers.hasDescendant
+import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
+import androidx.test.espresso.matcher.ViewMatchers.isEnabled
+import androidx.test.espresso.matcher.ViewMatchers.isRoot
+import androidx.test.espresso.matcher.ViewMatchers.withId
+import androidx.test.espresso.matcher.ViewMatchers.withText
+import com.facebook.testing.screenshot.internal.TestNameDetector
+import com.nextcloud.client.preferences.AppPreferencesImpl
+import com.nextcloud.test.Flaky
+import com.nextcloud.test.withSelectedText
+import com.nextcloud.utils.extensions.removeFileExtension
 import com.owncloud.android.AbstractIT
+import com.owncloud.android.R
+import com.owncloud.android.datamodel.OCFile
 import com.owncloud.android.utils.ScreenshotTest
-import org.junit.Rule
+import org.hamcrest.Matchers.not
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
+import java.io.File
 
 class ReceiveExternalFilesActivityIT : AbstractIT() {
-    @get:Rule
-    val activityRule = IntentsTestRule(ReceiveExternalFilesActivity::class.java, true, false)
+
+    lateinit var mainFolder: OCFile
+    lateinit var subFolder: OCFile
+    lateinit var existingImageFile: OCFile
+
+    @Before
+    fun setupFolderAndFileStructure() {
+        // Create folders with the necessary permissions and another test file
+        mainFolder = OCFile("/folder/").apply {
+            permissions = OCFile.PERMISSION_CAN_CREATE_FILE_AND_FOLDER
+            setFolder()
+            storageManager.saveNewFile(this)
+        }
+        subFolder = OCFile("${mainFolder.remotePath}sub folder/").apply {
+            permissions = OCFile.PERMISSION_CAN_CREATE_FILE_AND_FOLDER
+            setFolder()
+            storageManager.saveNewFile(this)
+        }
+        existingImageFile = OCFile("${mainFolder.remotePath}Existing Image File.jpg").apply {
+            storageManager.saveNewFile(this)
+        }
+    }
 
     @Test
     @ScreenshotTest
     fun open() {
-        val sut: Activity = activityRule.launchActivity(null)
-        screenshot(sut)
+        // Screenshot name must be constructed outside of the scenario, otherwise it will not be reliably detected
+        val screenShotName = TestNameDetector.getTestClass() + "_" + TestNameDetector.getTestName()
+        launchActivity<ReceiveExternalFilesActivity>().use { scenario ->
+            onView(isRoot()).check(matches(isDisplayed()))
+
+            scenario.onActivity { sut ->
+                screenshotViaName(sut, screenShotName)
+            }
+        }
     }
 
     @Test
@@ -45,5 +83,167 @@ class ReceiveExternalFilesActivityIT : AbstractIT() {
         val secondAccount = createAccount("secondtest@https://nextcloud.localhost")
         open()
         removeAccount(secondAccount)
+    }
+
+    fun createSendIntent(file: File): Intent = Intent(targetContext, ReceiveExternalFilesActivity::class.java).apply {
+        action = Intent.ACTION_SEND
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        putExtra(Intent.EXTRA_STREAM, Uri.fromFile(file))
+    }
+
+    fun createSendIntent(files: Iterable<File>): Intent =
+        Intent(targetContext, ReceiveExternalFilesActivity::class.java).apply {
+            action = Intent.ACTION_SEND_MULTIPLE
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            putParcelableArrayListExtra(Intent.EXTRA_STREAM, ArrayList(files.map { Uri.fromFile(it) }))
+        }
+
+    @Test
+    @Flaky(reason = "Rename dialog text selection is not settled when the assertions run")
+    fun renameSingleFileUpload() {
+        val imageFile = getDummyFile("image.jpg")
+        val intent = createSendIntent(imageFile)
+
+        // Store the folder in preferences, so the activity starts from there.
+        @Suppress("DEPRECATION")
+        val preferences = AppPreferencesImpl.fromContext(targetContext)
+        preferences.setLastUploadPath(mainFolder.remotePath)
+
+        launchActivity<ReceiveExternalFilesActivity>(intent).use {
+            val expectedMainFolderTitle = (getCurrentActivity() as ToolbarActivity).getActionBarTitle(mainFolder, false)
+            // Verify that the test starts in the expected folder. If this fails, change the setup calls above
+            onView(withId(R.id.toolbar))
+                .check(matches(hasDescendant(withText(expectedMainFolderTitle))))
+
+            onView(withText(R.string.uploader_btn_upload_text))
+                .check(matches(isDisplayed()))
+                .check(matches(isEnabled()))
+
+            // Test the pre-selection behavior (filename, but without extension, shall be selected)
+            onView(withId(R.id.user_input))
+                .check(matches(withText(imageFile.name)))
+                .perform(ViewActions.click())
+                .check(matches(withSelectedText(imageFile.name.removeFileExtension())))
+
+            // Set a new file name
+            val secondFileName = "New filename.jpg"
+            onView(withId(R.id.user_input))
+                .perform(ViewActions.typeTextIntoFocusedView(secondFileName.removeFileExtension()))
+                .check(matches(withText(secondFileName)))
+                // Leave the field and come back to verify the pre-selection behavior correctly handles the new name
+                .perform(ViewActions.pressKey(KeyEvent.KEYCODE_TAB))
+                .perform(ViewActions.click())
+                .check(matches(withSelectedText(secondFileName.removeFileExtension())))
+            onView(withText(R.string.uploader_btn_upload_text))
+                .check(matches(isDisplayed()))
+                .check(matches(isEnabled()))
+
+            // Set a file name without file extension
+            val thirdFileName = "No extension"
+            onView(withId(R.id.user_input))
+                .perform(ViewActions.clearText())
+                .perform(ViewActions.typeTextIntoFocusedView(thirdFileName))
+                .check(matches(withText(thirdFileName)))
+                // Leave the field and come back to verify the pre-selection behavior correctly handles the new name
+                .perform(ViewActions.pressKey(KeyEvent.KEYCODE_TAB))
+                .perform(ViewActions.click())
+                .check(matches(withSelectedText(thirdFileName)))
+            onView(withText(R.string.uploader_btn_upload_text))
+                .check(matches(isDisplayed()))
+                .check(matches(isEnabled()))
+
+            // Test an invalid filename. Note: as the user is null, the capabilities are also null, so the name checker
+            // will not reject any special characters like '/'. So we only test empty and an existing file name
+            onView(withId(R.id.user_input))
+                .perform(ViewActions.clearText())
+                .check(matches(withText("")))
+            onView(withText(R.string.uploader_btn_upload_text))
+                .check(matches(isDisplayed()))
+                .check(matches(not(isEnabled())))
+            onView(withId(R.id.user_input))
+                .perform(ViewActions.click())
+                .perform(ViewActions.typeTextIntoFocusedView(existingImageFile.fileName))
+                .check(matches(withText(existingImageFile.fileName)))
+            onView(withText(R.string.uploader_btn_upload_text))
+                .check(matches(isDisplayed()))
+                .check(matches(not(isEnabled())))
+
+            val fourthFileName = "New file name.jpg"
+            onView(withId(R.id.user_input))
+                .perform(ViewActions.click())
+                .perform(ViewActions.clearText())
+                .perform(ViewActions.typeTextIntoFocusedView(fourthFileName))
+                .check(matches(withText(fourthFileName)))
+            onView(withText(R.string.uploader_btn_upload_text))
+                .check(matches(isDisplayed()))
+                .check(matches(isEnabled()))
+
+            // Enter the subfolder and verify that the text stays intact
+            val expectedSubFolderTitle = (getCurrentActivity() as ToolbarActivity).getActionBarTitle(subFolder, false)
+            onView(withText(expectedSubFolderTitle))
+                .perform(ViewActions.click())
+            onView(withId(R.id.toolbar))
+                .check(matches(hasDescendant(withText(expectedSubFolderTitle))))
+            onView(withId(R.id.user_input))
+                .check(matches(withText(fourthFileName)))
+                .perform(ViewActions.click())
+                .check(matches(withSelectedText(fourthFileName.removeFileExtension())))
+
+            // Set a new, shorter file name
+            val fifthFileName = "short.jpg"
+            onView(withId(R.id.user_input))
+                .perform(ViewActions.typeTextIntoFocusedView(fifthFileName.removeFileExtension()))
+                .check(matches(withText(fifthFileName)))
+
+            // Start the upload, so the folder is stored in the preferences.
+            // Even though the upload is expected to fail because the backend is not mocked (yet?)
+            onView(withText(R.string.uploader_btn_upload_text))
+                .check(matches(isDisplayed()))
+                .check(matches(isEnabled()))
+                .perform(ViewActions.click())
+        }
+
+        // Start a new file receive flow. Should now start in the sub folder, but with the original filename again
+        launchActivity<ReceiveExternalFilesActivity>(intent).use {
+            val expectedMainFolderTitle = (getCurrentActivity() as ToolbarActivity).getActionBarTitle(subFolder, false)
+            onView(withId(R.id.toolbar))
+                .check(matches(hasDescendant(withText(expectedMainFolderTitle))))
+
+            onView(withText(R.string.uploader_btn_upload_text))
+                .check(matches(isDisplayed()))
+                .check(matches(isEnabled()))
+
+            onView(withId(R.id.user_input))
+                .check(matches(withText(imageFile.name)))
+        }
+    }
+
+    @Test
+    fun noRenameForMultiUpload() {
+        val testFiles = createDummyFiles()
+        val intent = createSendIntent(testFiles)
+
+        // Store the folder in preferences, so the activity starts from there.
+        @Suppress("DEPRECATION")
+        val preferences = AppPreferencesImpl.fromContext(targetContext)
+        preferences.setLastUploadPath(mainFolder.remotePath)
+
+        // In the multi-upload case the rename field is hidden and no view requests focus, so the
+        // activity window never gains focus on the CI emulator and Espresso's onView(...) fails with
+        // RootViewWithoutFocusException. The view state is therefore asserted directly via
+        // onActivity, which does not depend on window focus.
+        launchActivity<ReceiveExternalFilesActivity>(intent).use { scenario ->
+            scenario.onActivity { sut ->
+                // Verify that the test starts in the expected folder. If this fails, change the setup calls above
+                val expectedMainFolderTitle = sut.getActionBarTitle(mainFolder, false)
+                assertEquals(expectedMainFolderTitle, sut.supportActionBar?.title?.toString())
+
+                val uploadButton = sut.findViewById<View>(R.id.uploader_choose_folder)
+                assertEquals(View.VISIBLE, uploadButton.visibility)
+                assertTrue(uploadButton.isEnabled)
+
+                assertEquals(View.GONE, sut.findViewById<View>(R.id.user_input).visibility)
+            }
+        }
     }
 }

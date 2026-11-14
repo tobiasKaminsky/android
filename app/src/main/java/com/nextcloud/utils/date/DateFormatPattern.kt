@@ -1,0 +1,36 @@
+/*
+ * Nextcloud - Android Client
+ *
+ * SPDX-FileCopyrightText: 2024 Alper Ozturk <alper.ozturk@nextcloud.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+
+package com.nextcloud.utils.date
+
+enum class DateFormatPattern(val pattern: String) {
+    /**
+     * 10.11.2024 - 12:44
+     */
+    FullDateWithHours("dd.MM.yyyy - HH:mm"),
+
+    /**
+     * Aug 3
+     */
+    MonthWithDate("MMM d"),
+
+    /**
+     * March 03, 2026 14:38
+     */
+    MonthDayYearTime("MMMM dd, yyyy HH:mm"),
+
+    /**
+     * Aug 2026
+     */
+    MonthWithYear("MMM yyyy"),
+
+    FullMonthWithYear("MMMM yyyy"),
+
+    FullMonth("MMMM"),
+
+    Year("yyyy")
+}

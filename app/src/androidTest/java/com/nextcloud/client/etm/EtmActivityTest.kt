@@ -1,56 +1,48 @@
 /*
+ * Nextcloud - Android Client
  *
- * Nextcloud Android client application
- *
- * @author Tobias Kaminsky
- * Copyright (C) 2020 Tobias Kaminsky
- * Copyright (C) 2020 Nextcloud GmbH
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2020 Tobias Kaminsky <tobias@kaminsky.me>
+ * SPDX-FileCopyrightText: 2020 Nextcloud GmbH
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
-
 package com.nextcloud.client.etm
 
-import android.app.Activity
-import androidx.test.espresso.intent.rule.IntentsTestRule
-import androidx.test.internal.runner.junit4.statement.UiThreadStatement
+import androidx.test.core.app.launchActivity
+import androidx.test.espresso.Espresso.onView
+import androidx.test.espresso.assertion.ViewAssertions.matches
+import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
+import androidx.test.espresso.matcher.ViewMatchers.isRoot
 import com.owncloud.android.AbstractIT
 import com.owncloud.android.utils.ScreenshotTest
-import org.junit.Rule
 import org.junit.Test
 
 class EtmActivityTest : AbstractIT() {
-    @get:Rule
-    var activityRule = IntentsTestRule(EtmActivity::class.java, true, false)
+    private val testClassName = "com.nextcloud.client.etm.EtmActivityTest"
 
     @Test
     @ScreenshotTest
     fun overview() {
-        val sut: Activity = activityRule.launchActivity(null)
+        launchActivity<EtmActivity>().use { scenario ->
+            val screenShotName = createName(testClassName + "_" + "overview", "")
+            onView(isRoot()).check(matches(isDisplayed()))
 
-        waitForIdleSync()
-
-        screenshot(sut)
+            scenario.onActivity { sut ->
+                screenshotViaName(sut, screenShotName)
+            }
+        }
     }
 
     @Test
     @ScreenshotTest
     fun accounts() {
-        val sut: EtmActivity = activityRule.launchActivity(null)
+        launchActivity<EtmActivity>().use { scenario ->
+            val screenShotName = createName(testClassName + "_" + "accounts", "")
+            onView(isRoot()).check(matches(isDisplayed()))
 
-        UiThreadStatement.runOnUiThread { sut.vm.onPageSelected(1) }
-
-        screenshot(sut)
+            scenario.onActivity { sut ->
+                sut.vm.onPageSelected(1)
+                screenshotViaName(sut, screenShotName)
+            }
+        }
     }
 }

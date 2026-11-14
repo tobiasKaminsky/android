@@ -1,21 +1,8 @@
 /*
- * Nextcloud Android client application
+ * Nextcloud - Android Client
  *
- * @author Chris Narkiewicz
- * Copyright (C) 2019 Chris Narkiewicz <hello@ezaquarii.com>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2019 Chris Narkiewicz <hello@ezaquarii.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.logger
 
@@ -42,25 +29,22 @@ data class LogEntry(val timestamp: Date, val level: Level, val tag: String, val 
          */
         private val ENTRY_PARSE_REGEXP = Regex(
             pattern =
-            """(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z);([ADEIVW]);([^;]+);(.*)"""
+                """(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z);([ADEIVW]);([^;]+);(.*)"""
         )
 
         @JvmStatic
-        fun buildDateFormat(tz: TimeZone? = null): SimpleDateFormat {
-            return if (tz == null) {
-                SimpleDateFormat(UTC_DATE_FORMAT, Locale.US).apply {
-                    timeZone = TIME_ZONE
-                    isLenient = false
-                }
-            } else {
-                SimpleDateFormat(TZ_DATE_FORMAT, Locale.US).apply {
-                    timeZone = tz
-                    isLenient = false
-                }
+        fun buildDateFormat(tz: TimeZone? = null): SimpleDateFormat = if (tz == null) {
+            SimpleDateFormat(UTC_DATE_FORMAT, Locale.US).apply {
+                timeZone = TIME_ZONE
+                isLenient = false
+            }
+        } else {
+            SimpleDateFormat(TZ_DATE_FORMAT, Locale.US).apply {
+                timeZone = tz
+                isLenient = false
             }
         }
 
-        @Suppress("ReturnCount")
         @JvmStatic
         fun parse(s: String): LogEntry? {
             val result = ENTRY_PARSE_REGEXP.matchEntire(s) ?: return null

@@ -1,25 +1,10 @@
 /*
- * Nextcloud Android client application
+ * Nextcloud - Android Client
  *
- *  @author Álvaro Brey
- *  Copyright (C) 2022 Álvaro Brey
- *  Copyright (C) 2022 Nextcloud GmbH
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE
- * License as published by the Free Software Foundation; either
- * version 3 of the License, or any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU AFFERO GENERAL PUBLIC LICENSE for more details.
- *
- * You should have received a copy of the GNU Affero General Public
- * License along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * SPDX-FileCopyrightText: 2022 Álvaro Brey <alvaro@alvarobrey.com>
+ * SPDX-FileCopyrightText: 2022 Nextcloud GmbH
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
-
 package com.owncloud.android.utils.theme
 
 import android.content.Context
@@ -44,14 +29,14 @@ internal class MaterialSchemesProviderImpl @Inject constructor(
     private val themeCache: MutableMap<String, MaterialSchemes> = ConcurrentHashMap()
 
     override fun getMaterialSchemesForUser(user: User): MaterialSchemes {
-        val url: String = user.server.uri.toString()
+        val accountName = user.accountName
 
-        if (!themeCache.containsKey(url)) {
+        if (!themeCache.containsKey(accountName)) {
             val capability = CapabilityUtils.getCapability(user, context)
-            themeCache[url] = getMaterialSchemesForCapability(capability)
+            themeCache[accountName] = getMaterialSchemesForCapability(capability)
         }
 
-        return themeCache[url]!!
+        return themeCache[accountName]!!
     }
 
     override fun getMaterialSchemesForCapability(capability: OCCapability): MaterialSchemes {
@@ -59,14 +44,13 @@ internal class MaterialSchemesProviderImpl @Inject constructor(
         return MaterialSchemes.fromServerTheme(serverTheme)
     }
 
-    override fun getMaterialSchemesForCurrentUser(): MaterialSchemes {
-        return when (val user = userAccountManager.user) {
-            is AnonymousUser -> {
-                logger.d(TAG, "User is anonymous, using default schemes")
-                getDefaultMaterialSchemes()
-            }
-            else -> getMaterialSchemesForUser(user)
+    override fun getMaterialSchemesForCurrentUser(): MaterialSchemes = when (val user = userAccountManager.user) {
+        is AnonymousUser -> {
+            logger.d(TAG, "User is anonymous, using default schemes")
+            getDefaultMaterialSchemes()
         }
+
+        else -> getMaterialSchemesForUser(user)
     }
 
     override fun getDefaultMaterialSchemes(): MaterialSchemes {

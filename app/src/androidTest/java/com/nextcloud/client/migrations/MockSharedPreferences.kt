@@ -1,26 +1,12 @@
 /*
- * Nextcloud Android client application
+ * Nextcloud - Android Client
  *
- * @author Chris Narkiewicz
- * Copyright (C) 2020 Chris Narkiewicz <hello@ezaquarii.com>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2020 Chris Narkiewicz <hello@ezaquarii.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.migrations
 
 import android.content.SharedPreferences
-import java.lang.UnsupportedOperationException
 import java.util.TreeMap
 
 /**
@@ -30,7 +16,6 @@ import java.util.TreeMap
  *
  * The implementation is not thread-safe.
  */
-@Suppress("TooManyFunctions")
 class MockSharedPreferences : SharedPreferences {
 
     class MockEditor(val store: MutableMap<String?, Any?>) : SharedPreferences.Editor {
@@ -83,25 +68,16 @@ class MockSharedPreferences : SharedPreferences {
 
     override fun getInt(key: String?, defValue: Int): Int = store.getOrDefault(key, defValue) as Int
 
-    override fun getAll(): MutableMap<String?, Any?> {
-        return HashMap(store)
-    }
+    override fun getAll(): MutableMap<String?, Any?> = HashMap(store)
 
-    override fun edit(): SharedPreferences.Editor {
-        return MockEditor(store)
-    }
+    override fun edit(): SharedPreferences.Editor = MockEditor(store)
 
-    override fun getLong(key: String?, defValue: Long): Long {
-        throw UnsupportedOperationException()
-    }
+    override fun getLong(key: String?, defValue: Long): Long = throw UnsupportedOperationException()
 
-    override fun getFloat(key: String?, defValue: Float): Float {
-        throw UnsupportedOperationException()
-    }
+    override fun getFloat(key: String?, defValue: Float): Float = throw UnsupportedOperationException()
 
-    override fun getStringSet(key: String?, defValues: MutableSet<String>?): MutableSet<String>? {
-        return store.getOrDefault(key, defValues) as MutableSet<String>?
-    }
+    override fun getStringSet(key: String?, defValues: MutableSet<String>?): MutableSet<String>? =
+        store.getOrDefault(key, defValues) as MutableSet<String>?
 
     override fun registerOnSharedPreferenceChangeListener(
         listener: SharedPreferences.OnSharedPreferenceChangeListener?

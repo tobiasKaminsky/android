@@ -1,24 +1,10 @@
 /*
- * Nextcloud Android client application
+ * Nextcloud - Android Client
  *
- * @author Álvaro Brey Vilas
- * Copyright (C) 2021 Álvaro Brey Vilas
- * Copyright (C) 2021 Nextcloud GmbH
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2021 Álvaro Brey <alvaro@alvarobrey.com>
+ * SPDX-FileCopyrightText: 2021 Nextcloud GmbH
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
-
 package com.nextcloud.test
 
 import android.Manifest
@@ -29,6 +15,10 @@ import org.junit.rules.TestRule
 import org.junit.runner.Description
 import org.junit.runners.model.Statement
 
+/**
+ * Rule to automatically enable the test to write to the external storage.
+ * Depending on the SDK version, different approaches might be necessary to achieve the full access.
+ */
 class GrantStoragePermissionRule private constructor() {
 
     companion object {
@@ -37,6 +27,7 @@ class GrantStoragePermissionRule private constructor() {
             Build.VERSION.SDK_INT < Build.VERSION_CODES.R -> GrantPermissionRule.grant(
                 Manifest.permission.WRITE_EXTERNAL_STORAGE
             )
+
             else -> GrantManageExternalStoragePermissionRule()
         }
     }
@@ -44,6 +35,7 @@ class GrantStoragePermissionRule private constructor() {
     private class GrantManageExternalStoragePermissionRule : TestRule {
         override fun apply(base: Statement, description: Description): Statement = object : Statement() {
             override fun evaluate() {
+                // Refer to https://developer.android.com/training/data-storage/manage-all-files#enable-manage-external-storage-for-testing
                 InstrumentationRegistry.getInstrumentation().uiAutomation.executeShellCommand(
                     "appops set --uid ${InstrumentationRegistry.getInstrumentation().targetContext.packageName} " +
                         "MANAGE_EXTERNAL_STORAGE allow"

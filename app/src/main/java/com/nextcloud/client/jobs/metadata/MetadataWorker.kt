@@ -1,0 +1,139 @@
+/*
+ * Nextcloud - Android Client
+ *
+ * SPDX-FileCopyrightText: 2025 Alper Ozturk <alper.ozturk@nextcloud.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+
+package com.nextcloud.client.jobs.metadata
+
+import android.content.Context
+import androidx.work.CoroutineWorker
+import androidx.work.WorkerParameters
+import com.nextcloud.client.account.User
+import com.nextcloud.utils.extensions.getNonEncryptedSubfolders
+import com.owncloud.android.datamodel.FileDataStorageManager
+import com.owncloud.android.datamodel.OCFile
+import com.owncloud.android.lib.common.operations.RemoteOperationResult
+import com.owncloud.android.lib.common.utils.Log_OC
+import com.owncloud.android.operations.RefreshFolderOperation
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withContext
+
+@Suppress("DEPRECATION")
+class MetadataWorker(private val context: Context, params: WorkerParameters, private val user: User) :
+    CoroutineWorker(context, params) {
+
+    companion object {
+        private const val TAG = "MetadataWorker"
+        const val FILE_PATH = "file_path"
+        const val FOLDER_ALREADY_SYNCED = "folder_already_synced"
+    }
+
+    override suspend fun doWork(): Result {
+        val filePath = inputData.getString(FILE_PATH) ?: run {
+            Log_OC.e(TAG, "Invalid folder path, aborting metadata sync")
+            return Result.failure()
+        }
+
+        if (user.isAnonymous) {
+            Log_OC.w(TAG, "User is anonymous, cannot start metadata worker")
+            return Result.failure()
+        }
+
+        val storageManager = FileDataStorageManager(user, context.contentResolver)
+
+        val currentDir = storageManager.getFileByDecryptedRemotePath(filePath) ?: run {
+            Log_OC.e(TAG, "File not found: $filePath")
+            return Result.failure()
+        }
+        if (!currentDir.canFetch()) return Result.failure()
+
+        Log_OC.d(TAG, "Starting metadata sync for folder: $filePath, id: ${currentDir.fileId}")
+
+        val folderAlreadySynced = inputData.getBoolean(FOLDER_ALREADY_SYNCED, false)
+        if (!folderAlreadySynced && !refreshFolder(currentDir, storageManager)) return Result.failure()
+
+        val refreshedDir = storageManager.getFileByPath(filePath) ?: run {
+            Log_OC.e(TAG, "File not found after refresh: $filePath")
+            return Result.failure()
+        }
+        if (!refreshedDir.canFetch()) return Result.failure()
+
+        val subfolders = storageManager.getNonEncryptedSubfolders(refreshedDir.fileId, user.accountName)
+        Log_OC.d(TAG, "Found ${subfolders.size} subfolders to sync")
+
+        val failedCount = syncSubfolders(subfolders, storageManager)
+
+        Log_OC.d(TAG, "Metadata sync completed for folder: $filePath. Failed: $failedCount/${subfolders.size}")
+
+        return Result.success()
+    }
+
+    private suspend fun syncSubfolders(subfolders: List<OCFile>, storageManager: FileDataStorageManager): Int {
+        var failedCount = 0
+        for (subfolder in subfolders) {
+            if (!refreshFolder(subfolder, storageManager)) failedCount++
+        }
+        return failedCount
+    }
+
+    private fun OCFile.canFetch(): Boolean {
+        if (!hasValidParentId()) {
+            Log_OC.e(TAG, "Folder has invalid ID: $remotePath")
+            return false
+        }
+        if (isEncrypted) {
+            Log_OC.d(TAG, "Skipping encrypted folder: $remotePath")
+            return false
+        }
+        return true
+    }
+
+    private suspend fun refreshFolder(folder: OCFile, storageManager: FileDataStorageManager): Boolean =
+        withContext(Dispatchers.IO) {
+            Log_OC.d(
+                TAG,
+                "eTag check - Path: ${folder.remotePath}, eTag: ${folder.etag}, eTagOnServer: ${folder.etagOnServer}"
+            )
+
+            if (!folder.canFetch()) return@withContext false
+
+            if (!folder.isEtagChanged) {
+                Log_OC.d(TAG, "Skipping ${folder.remotePath}, eTag unchanged")
+                return@withContext true
+            }
+
+            Log_OC.d(TAG, "Fetching metadata for: ${folder.remotePath}, id: ${folder.fileId}")
+
+            val operation = RefreshFolderOperation(folder, storageManager, user, context)
+            return@withContext try {
+                val result = operation.executeCancellable()
+                if (result.isSuccess) {
+                    Log_OC.d(TAG, "Successfully fetched metadata for: ${folder.remotePath}")
+                    true
+                } else {
+                    Log_OC.e(TAG, "Failed to fetch metadata for: ${folder.remotePath}")
+                    false
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log_OC.e(TAG, "Exception refreshing folder ${folder.remotePath}: ${e.message}", e)
+                false
+            }
+        }
+
+    private suspend fun RefreshFolderOperation.executeCancellable(): RemoteOperationResult<*> = coroutineScope {
+        val execution = async { execute(user, context) }
+        try {
+            execution.await()
+        } catch (e: CancellationException) {
+            cancel()
+            throw e
+        }
+    }
+}

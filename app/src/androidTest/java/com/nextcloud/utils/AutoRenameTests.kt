@@ -1,0 +1,313 @@
+/*
+ * Nextcloud - Android Client
+ *
+ * SPDX-FileCopyrightText: 2026 Philipp Hasper <vcs@hasper.info>
+ * SPDX-FileCopyrightText: 2024 Alper Ozturk <alper.ozturk@nextcloud.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+
+package com.nextcloud.utils
+
+import com.nextcloud.test.SinceServer
+import com.nextcloud.utils.autoRename.AutoRename
+import com.owncloud.android.AbstractOnServerIT
+import com.owncloud.android.datamodel.e2e.v2.decrypted.DecryptedFile
+import com.owncloud.android.lib.resources.status.CapabilityBooleanType
+import com.owncloud.android.lib.resources.status.NextcloudVersion
+import com.owncloud.android.lib.resources.status.OCCapability
+import org.junit.Before
+import org.junit.Test
+
+@SinceServer(majorVersion = 30)
+class AutoRenameTests : AbstractOnServerIT() {
+
+    private var capability: OCCapability = storageManager.getCapability(account.name)
+    private val forbiddenFilenameExtension = "."
+    private val forbiddenFilenameCharacter = ">"
+
+    @Before
+    fun setup() {
+        testOnlyOnServer(NextcloudVersion.nextcloud_30)
+
+        capability = capability.apply {
+            isWCFEnabled = CapabilityBooleanType.TRUE
+            forbiddenFilenameExtensionJson = listOf(
+                """[" ",".",".part",".part"]""",
+                """[".",".part",".part"," "]""",
+                """[".",".part"," ", ".part"]""",
+                """[".part"," ", ".part","."]""",
+                """[" ",".",".PART",".PART"]""",
+                """[".",".PART",".PART"," "]""",
+                """[".",".PART"," ", ".PART"]""",
+                """[".PART"," ", ".PART","."]"""
+            ).random()
+            forbiddenFilenameCharactersJson = """["<", ">", ":", "\\\\", "/", "|", "?", "*", "&"]"""
+        }
+    }
+
+    @Test
+    fun testInvalidChar() {
+        val filename = "file${forbiddenFilenameCharacter}file.txt"
+        val result = AutoRename.rename(filename, capability)
+        val expectedFilename = "file_file.txt"
+        assert(result == expectedFilename) { "Expected $expectedFilename but got $result" }
+    }
+
+    @Test
+    fun testInvalidExtension() {
+        val filename = "file$forbiddenFilenameExtension"
+        val result = AutoRename.rename(filename, capability)
+        val expectedFilename = "file_"
+        assert(result == expectedFilename) { "Expected $expectedFilename but got $result" }
+    }
+
+    @Test
+    fun testMultipleInvalidChars() {
+        val filename = "file|name?<>.txt"
+        val result = AutoRename.rename(filename, capability)
+        val expectedFilename = "file_name___.txt"
+        assert(result == expectedFilename) { "Expected $expectedFilename but got $result" }
+    }
+
+    @Test
+    fun testStartEndInvalidExtensions() {
+        val filename = " .file.part "
+        val result = AutoRename.rename(filename, capability)
+        val expectedFilename = "_file_part"
+        assert(result == expectedFilename) { "Expected $expectedFilename but got $result" }
+    }
+
+    @Test
+    fun testStartInvalidExtension() {
+        val filename = " .file.part"
+        val result = AutoRename.rename(filename, capability)
+        val expectedFilename = "_file_part"
+        assert(result == expectedFilename) { "Expected $expectedFilename but got $result" }
+    }
+
+    @Test
+    fun testEndInvalidExtension() {
+        val filename = ".file.part "
+        val result = AutoRename.rename(filename, capability)
+        val expectedFilename = "_file_part"
+        assert(result == expectedFilename) { "Expected $expectedFilename but got $result" }
+    }
+
+    @Test
+    fun testMiddleNonPrintableChar() {
+        val filename = "file\u0001name.txt"
+        val result = AutoRename.rename(filename, capability)
+        val expectedFilename = "filename.txt"
+        assert(result == expectedFilename) { "Expected $expectedFilename but got $result" }
+    }
+
+    @Test
+    fun testStartNonPrintableChar() {
+        val filename = "\u0001filename.txt"
+        val result = AutoRename.rename(filename, capability)
+        val expectedFilename = "filename.txt"
+        assert(result == expectedFilename) { "Expected $expectedFilename but got $result" }
+    }
+
+    @Test
+    fun testEndNonPrintableChar() {
+        val filename = "filename.txt\u0001"
+        val result = AutoRename.rename(filename, capability)
+        val expectedFilename = "filename.txt"
+        assert(result == expectedFilename) { "Expected $expectedFilename but got $result" }
+    }
+
+    @Test
+    fun testExtensionNonPrintableChar() {
+        val filename = "filename.t\u0001xt"
+        val result = AutoRename.rename(filename, capability)
+        val expectedFilename = "filename.txt"
+        assert(result == expectedFilename) { "Expected $expectedFilename but got $result" }
+    }
+
+    @Test
+    fun testMiddleInvalidFolderChar() {
+        val folderPath = "abc/def/kg$forbiddenFilenameCharacter/lmo/pp/"
+        val result = AutoRename.rename(folderPath, capability)
+        val expectedFolderName = "abc/def/kg_/lmo/pp/"
+        assert(result == expectedFolderName) { "Expected $expectedFolderName but got $result" }
+    }
+
+    @Test
+    fun testEndInvalidFolderChar() {
+        val folderPath = "abc/def/kg/lmo/pp$forbiddenFilenameCharacter/"
+        val result = AutoRename.rename(folderPath, capability)
+        val expectedFolderName = "abc/def/kg/lmo/pp_/"
+        assert(result == expectedFolderName) { "Expected $expectedFolderName but got $result" }
+    }
+
+    @Test
+    fun testStartInvalidFolderChar() {
+        val folderPath = "${forbiddenFilenameCharacter}abc/def/kg/lmo/pp/"
+        val result = AutoRename.rename(folderPath, capability)
+        val expectedFolderName = "_abc/def/kg/lmo/pp/"
+        assert(result == expectedFolderName) { "Expected $expectedFolderName but got $result" }
+    }
+
+    @Test
+    fun testMixedInvalidChar() {
+        val filename = " file\u0001na${forbiddenFilenameCharacter}me.txt "
+        val result = AutoRename.rename(filename, capability)
+        val expectedFilename = "filena_me.txt"
+        assert(result == expectedFilename) { "Expected $expectedFilename but got $result" }
+    }
+
+    @Test
+    fun testStartsWithPathSeparator() {
+        val folderPath = "/abc/def/kg/lmo/pp$forbiddenFilenameCharacter/file.txt/"
+        val result = AutoRename.rename(folderPath, capability)
+        val expectedFolderName = "/abc/def/kg/lmo/pp_/file.txt/"
+        assert(result == expectedFolderName) { "Expected $expectedFolderName but got $result" }
+    }
+
+    @Test
+    fun testStartsWithPathSeparatorAndValidFilepath() {
+        val folderPath = "/COm02/2569.webp/"
+        val result = AutoRename.rename(folderPath, capability)
+        val expectedFolderName = "/COm02/2569.webp/"
+        assert(result == expectedFolderName) { "Expected $expectedFolderName but got $result" }
+    }
+
+    @Test
+    fun testValidFilename() {
+        val filename = ".file.TXT"
+        val result = AutoRename.rename(filename, capability)
+        val expectedFilename = "_file.txt"
+        assert(result == expectedFilename) { "Expected $expectedFilename but got $result" }
+    }
+
+    @Test
+    fun testRenameExtensionForFolder() {
+        val filename = "/Pictures/@User/SubDir/08.16.07 Ka Yel/"
+        val result = AutoRename.rename(filename, capability)
+        assert(result == filename) { "Expected $filename but got $result" }
+    }
+
+    @Test
+    fun testRenameExtensionForFile() {
+        val filename = "/Pictures/@User/SubDir/08.16.07 Ka Yel.TXT"
+        val result = AutoRename.rename(filename, capability)
+        val expectedFilename = "/Pictures/@User/SubDir/08.16.07 Ka Yel.txt"
+        assert(result == expectedFilename) { "Expected $expectedFilename but got $result" }
+    }
+
+    @Test
+    fun testE2EEFile() {
+        val decryptedFile = DecryptedFile(
+            authenticationTag = "HQlWBdm+gYC5kZwWnqXR1Q==",
+            filename = "a:a.jpg",
+            nonce = "sigyys8SfPZSScDJ860vYw==",
+            mimetype = "image/jpeg",
+            key = "sigyys8SfPZSScDJ860vYw=="
+        )
+
+        val result = AutoRename.rename(decryptedFile.filename, capability)
+        val expectedFilename = "a_a.jpg"
+        assert(result == expectedFilename) { "Expected $expectedFilename but got $result" }
+    }
+
+    @Test
+    fun testRemovingLeadingWhitespace() {
+        val filename = " readme.txt"
+        val result = AutoRename.rename(filename, capability)
+        val expectedFilename = "readme.txt"
+        assert(result == expectedFilename) { "Expected $expectedFilename but got $result" }
+    }
+
+    @Test
+    fun testRemovingTrailingWhitespace() {
+        val filename = "readme.txt "
+        val result = AutoRename.rename(filename, capability)
+        val expectedFilename = "readme.txt"
+        assert(result == expectedFilename) { "Expected $expectedFilename but got $result" }
+    }
+
+    @Test
+    fun testRemovingTrailingAndLeadingWhitespace() {
+        val filename = "   readme.txt  "
+        val result = AutoRename.rename(filename, capability)
+        val expectedFilename = "readme.txt"
+        assert(result == expectedFilename) { "Expected $expectedFilename but got $result" }
+    }
+
+    @Test
+    fun testFolderNameLowercase() {
+        val filename = "Foo.Bar.Baz"
+        val result = AutoRename.rename(filename, capability, isFolderPath = true)
+        val expectedFilename = "Foo.Bar.Baz"
+        assert(result == expectedFilename) { "Expected $expectedFilename but got $result" }
+    }
+
+    /**
+     * For documentation see [com.nextcloud.utils.extensions.checkWCFRestrictions]
+     */
+    @Test
+    fun testWCFDisabledOnNextcloud32ShouldSkipRestrictions() {
+        val filename = "   readme.txt  "
+        val nc32Capability = capability.apply {
+            versionMayor = NextcloudVersion.nextcloud_32.majorVersionNumber
+            isWCFEnabled = CapabilityBooleanType.FALSE
+        }
+        val result = AutoRename.rename(filename, nc32Capability, isFolderPath = true)
+        assert(result == filename) { "Expected $filename but got $result" }
+    }
+
+    @Test
+    fun testWCFEnabledOnNextcloud32ShouldApplyRestrictions() {
+        val filename = "   readme.txt  "
+        val nc32Capability = capability.apply {
+            versionMayor = NextcloudVersion.nextcloud_32.majorVersionNumber
+            isWCFEnabled = CapabilityBooleanType.TRUE
+        }
+        val result = AutoRename.rename(filename, nc32Capability, isFolderPath = true)
+        val expectedFilename = "readme.txt"
+        assert(result == expectedFilename) { "Expected $expectedFilename but got $result" }
+    }
+
+    @Test
+    fun testWCFDisabledOnNextcloud30to31ShouldStillApplyRestrictions() {
+        val filename = "   readme.txt  "
+        val nc30Capability = capability.apply {
+            versionMayor = NextcloudVersion.nextcloud_30.majorVersionNumber
+            isWCFEnabled = CapabilityBooleanType.FALSE
+        }
+        val result = AutoRename.rename(filename, nc30Capability, isFolderPath = true)
+        val expectedFilename = "readme.txt"
+        assert(result == expectedFilename) { "Expected $expectedFilename but got $result" }
+    }
+
+    @Test
+    fun testWCFOnNextcloudBelow30ShouldSkipRestrictions() {
+        val filename = "   readme.txt  "
+        val nc29Capability = capability.apply {
+            versionMayor = NextcloudVersion.nextcloud_29.majorVersionNumber
+            isWCFEnabled = CapabilityBooleanType.TRUE
+        }
+        val result = AutoRename.rename(filename, nc29Capability, isFolderPath = true)
+        assert(result == filename) { "Expected $filename but got $result" }
+    }
+
+    @Test
+    fun testRenameWithLowercasedFiles() {
+        val filename = "1.txt"
+        val result = AutoRename.rename(filename, capability)
+        assert(result == filename) { "Expected $filename but got $result" }
+
+        val secondFilename = "/1.txt"
+        val secondResult = AutoRename.rename(secondFilename, capability)
+        assert(secondResult == secondFilename) { "Expected $secondFilename but got $secondResult" }
+
+        val thirdFilename = "/A/1.txt"
+        val thirdResult = AutoRename.rename(thirdFilename, capability)
+        assert(thirdResult == thirdFilename) { "Expected $thirdFilename but got $thirdResult" }
+
+        val path = "/A/BB/"
+        val pathResult = AutoRename.rename(path, capability)
+        assert(pathResult == path) { "Expected $path but got $pathResult" }
+    }
+}

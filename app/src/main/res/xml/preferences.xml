@@ -1,32 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  ownCloud Android client application
-
-  Copyright (C) 2012  Bartek Przybylski
-  Copyright (C) 2012-2013 ownCloud Inc.
-  Copyright (C) 2019 Chris Narkiewicz <hello@ezaquarii.com>
-
-  This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License version 2,
-  as published by the Free Software Foundation.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  ~ Nextcloud - Android Client
+  ~
+  ~ SPDX-FileCopyrightText: 2017-2022 Tobias Kaminsky <tobias@kaminsky.me>
+  ~ SPDX-FileCopyrightText: 2019 Chris Narkiewicz <hello@ezaquarii.com>
+  ~ SPDX-FileCopyrightText: 2012-2013 ownCloud Inc.
+  ~ SPDX-FileCopyrightText: 2012 Bartosz Przybylski
+  ~ SPDX-License-Identifier: GPL-2.0-only AND (AGPL-3.0-or-later OR GPL-2.0-only)
 -->
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
 				  android:key="preference_screen">
     <PreferenceCategory
         android:title="@string/prefs_category_general"
         android:key="general">
-        <ListPreference
-            android:title="@string/prefs_storage_path"
-            android:key="storage_path"/>
-        <ListPreference
+        <Preference
+            android:title="@string/prefs_data_storage_location"
+            android:key="data_storage_location"
+            android:summary="@string/prefs_data_storage_location_summary" />
+        <Preference
             android:title="@string/prefs_theme_title"
             android:key="darkMode"
             android:summary="%s" />
@@ -43,16 +34,30 @@
 			android:key="synced_folders_configure_folders"/>
 	</PreferenceCategory>
 
+    <PreferenceCategory
+        android:title="@string/prefs_category_files"
+        android:key="files">
+        <com.owncloud.android.ui.ThemeableSwitchPreference
+            android:title="@string/prefs_show_hidden_files"
+            android:key="show_hidden_files" />
+        <com.owncloud.android.ui.ThemeableSwitchPreference
+            android:defaultValue="true"
+            android:title="@string/sort_folders_before_files"
+            android:key="sort_folders_before_files" />
+        <com.owncloud.android.ui.ThemeableSwitchPreference
+            android:defaultValue="true"
+            android:title="@string/sort_favorites_first"
+            android:key="sort_favorites_first" />
+    </PreferenceCategory>
+
 	<PreferenceCategory android:title="@string/prefs_category_details" android:key="details">
-		<ListPreference
+		<Preference
 			android:title="@string/prefs_lock"
 			android:key="lock"
 			android:dialogTitle="@string/prefs_lock_title"
 			android:defaultValue="none"/>
-		<com.owncloud.android.ui.ThemeableSwitchPreference
-			android:title="@string/prefs_show_hidden_files"
-			android:key="show_hidden_files"/>
         <com.owncloud.android.ui.ThemeableSwitchPreference
+            android:defaultValue="true"
             android:title="@string/prefs_show_ecosystem_apps"
             android:key="show_ecosystem_apps"
             android:summary="@string/prefs_show_ecosystem_apps_summary"/>
@@ -62,13 +67,28 @@
             android:key="show_media_scan_notifications"/>
 	</PreferenceCategory>
 
+    <PreferenceCategory
+        android:title="@string/prefs_category_sync"
+        android:key="sync">
+    <Preference
+        android:title="@string/drawer_synced_folders"
+        android:key="syncedFolders"
+        android:summary="@string/prefs_sycned_folders_summary" />
+
+        <Preference
+            android:title="@string/internal_two_way_sync"
+            android:key="internal_two_way_sync"
+            android:summary="@string/prefs_two_way_sync_summary" />
+
+        <Preference
+            android:title="@string/prefs_all_files_access_title"
+            android:key="allFilesAccess"
+            android:summary="@string/prefs_all_files_access_summary" />
+    </PreferenceCategory>
+
 	<PreferenceCategory
         android:title="@string/prefs_category_more"
         android:key="more">
-        <Preference
-            android:title="@string/drawer_synced_folders"
-            android:key="syncedFolders"
-            android:summary="@string/prefs_sycned_folders_summary" />
         <Preference
             android:title="@string/prefs_calendar_contacts"
             android:key="calendar_contacts"
@@ -93,6 +113,12 @@
             android:title="@string/prefs_remove_e2e"
             android:key="remove_e2e"
             android:summary="@string/remove_e2e" />
+        <Preference
+            android:title="@string/prefs_remove_e2e_keys_and_files"
+            android:key="remove_e2e_files_and_keys" />
+        <Preference
+            android:title="@string/prefs_renew_e2e_certificate"
+            android:key="renew_e2e_certificate" />
 
         <Preference
             android:title="@string/prefs_help"

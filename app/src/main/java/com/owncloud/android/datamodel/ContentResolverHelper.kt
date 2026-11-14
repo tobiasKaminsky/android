@@ -1,22 +1,9 @@
 /*
- * Nextcloud Android client application
+ * Nextcloud - Android Client
  *
- * @author Álvaro Brey Vilas
- * Copyright (C) 2021 Álvaro Brey Vilas
- * Copyright (C) 2021 Nextcloud GmbH
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2021 Álvaro Brey <alvaro@alvarobrey.com>
+ * SPDX-FileCopyrightText: 2021 Nextcloud GmbH
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.datamodel
 
@@ -38,7 +25,6 @@ object ContentResolverHelper {
      */
     @JvmStatic
     @JvmOverloads
-    @Suppress("LongParameterList")
     fun queryResolver(
         contentResolver: ContentResolver,
         uri: Uri,
@@ -62,6 +48,7 @@ object ContentResolverHelper {
                 val queryArgs = getQueryArgsBundle(selection, sortColumn, sortDirection, limit)
                 contentResolver.query(uri, projection, queryArgs, cancellationSignal)
             }
+
             else -> {
                 val sortOrder = getSortOrderString(sortColumn, sortDirection, limit)
                 contentResolver.query(
@@ -96,22 +83,20 @@ object ContentResolverHelper {
         sortColumn: String?,
         sortDirection: String?,
         limit: Int?
-    ): Bundle {
-        return Bundle().apply {
-            if (selection != null) {
-                putString(ContentResolver.QUERY_ARG_SQL_SELECTION, selection)
+    ): Bundle = Bundle().apply {
+        if (selection != null) {
+            putString(ContentResolver.QUERY_ARG_SQL_SELECTION, selection)
+        }
+        if (sortColumn != null) {
+            putStringArray(ContentResolver.QUERY_ARG_SORT_COLUMNS, arrayOf(sortColumn))
+            val direction = when (sortDirection) {
+                SORT_DIRECTION_ASCENDING -> ContentResolver.QUERY_SORT_DIRECTION_ASCENDING
+                else -> ContentResolver.QUERY_SORT_DIRECTION_DESCENDING
             }
-            if (sortColumn != null) {
-                putStringArray(ContentResolver.QUERY_ARG_SORT_COLUMNS, arrayOf(sortColumn))
-                val direction = when (sortDirection) {
-                    SORT_DIRECTION_ASCENDING -> ContentResolver.QUERY_SORT_DIRECTION_ASCENDING
-                    else -> ContentResolver.QUERY_SORT_DIRECTION_DESCENDING
-                }
-                putInt(ContentResolver.QUERY_ARG_SORT_DIRECTION, direction)
-            }
-            if (limit != null) {
-                putInt(ContentResolver.QUERY_ARG_LIMIT, limit)
-            }
+            putInt(ContentResolver.QUERY_ARG_SORT_DIRECTION, direction)
+        }
+        if (limit != null) {
+            putInt(ContentResolver.QUERY_ARG_LIMIT, limit)
         }
     }
 }

@@ -1,31 +1,48 @@
 /*
- * Nextcloud Android client application
+ * Nextcloud - Android Client
  *
- * @author Mario Danic
- * Copyright (C) 2017 Mario Danic
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2017 Mario Danic <mario@lovelyhq.com>
+ * SPDX-FileCopyrightText: 2017 Nextcloud GmbH
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.ui.events
 
+import android.os.Bundle
 import android.os.Parcelable
 import com.owncloud.android.lib.resources.files.SearchRemoteOperation
+import com.owncloud.android.ui.fragment.OCFileListFragment
+import com.owncloud.android.ui.fragment.SearchType
 import kotlinx.parcelize.Parcelize
 
 /**
- * Search event
+ * Represents a search or filter request for [com.owncloud.android.ui.fragment.OCFileListFragment].
+ *
+ * Used to pass search state via fragment arguments and to keep the UI
+ * (navigation drawer, empty states) in sync with search behavior.
+ *
+ * This class bridges {@link SearchRemoteOperation.SearchType} values
+ * with UI-level {@link SearchType} used by the file list and drawer highlighting.
+ *
+ * @property searchQuery the query string for the search (may be empty)
+ * @property searchType the search type defining the search behavior
  */
-
 @Parcelize
-data class SearchEvent(val searchQuery: String, val searchType: SearchRemoteOperation.SearchType) : Parcelable
+data class SearchEvent(val searchQuery: String, val searchType: SearchRemoteOperation.SearchType) : Parcelable {
+    fun toSearchType(): SearchType? = when (searchType) {
+        SearchRemoteOperation.SearchType.FILE_SEARCH -> SearchType.FILE_SEARCH
+        SearchRemoteOperation.SearchType.FAVORITE_SEARCH -> SearchType.FAVORITE_SEARCH
+        SearchRemoteOperation.SearchType.RECENTLY_MODIFIED_SEARCH -> SearchType.RECENT_FILES_SEARCH
+        SearchRemoteOperation.SearchType.SHARED_FILTER -> SearchType.SHARED_FILTER
+        SearchRemoteOperation.SearchType.PHOTO_SEARCH -> SearchType.GALLERY_SEARCH
+        SearchRemoteOperation.SearchType.GALLERY_SEARCH -> SearchType.GALLERY_SEARCH
+        else -> null
+    }
+
+    /**
+     * Creates a bundle for initializing {@link OCFileListFragment} with this search.
+     */
+    fun getBundle(): Bundle = Bundle().apply {
+        putParcelable(OCFileListFragment.SEARCH_EVENT, this@SearchEvent)
+        putParcelable(OCFileListFragment.KEY_CURRENT_SEARCH_TYPE, toSearchType())
+    }
+}

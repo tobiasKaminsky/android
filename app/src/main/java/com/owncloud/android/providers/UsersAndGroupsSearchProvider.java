@@ -1,23 +1,13 @@
 /*
- * ownCloud Android client application
+ * Nextcloud - Android Client
  *
- * @author David A. Velasco
- * @author Juan Carlos González Cabrero
- * Copyright (C) 2015 ownCloud Inc.
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2,
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2019-2020 Tobias Kaminsky <tobias@kaminsky.me>
+ * SPDX-FileCopyrightText: 2019 Chris Narkiewicz <hello@ezaquarii.com>
+ * SPDX-FileCopyrightText: 2015 ownCloud Inc.
+ * SPDX-FileCopyrightText: 2016 Juan Carlos González Cabrero <malkomich@gmail.com>
+ * SPDX-FileCopyrightText: 2015 David A. Velasco <dvelasco@solidgear.es>
+ * SPDX-License-Identifier: GPL-2.0-only AND (AGPL-3.0-or-later OR GPL-2.0-only)
  */
-
 package com.owncloud.android.providers;
 
 import android.app.SearchManager;
@@ -34,6 +24,7 @@ import android.os.Looper;
 import android.os.ParcelFileDescriptor;
 import android.provider.BaseColumns;
 import android.text.TextUtils;
+import android.util.Log;
 import android.widget.Toast;
 
 import com.nextcloud.client.account.User;
@@ -79,7 +70,6 @@ import static com.owncloud.android.lib.resources.shares.GetShareesRemoteOperatio
 import static com.owncloud.android.lib.resources.shares.GetShareesRemoteOperation.PROPERTY_MESSAGE;
 import static com.owncloud.android.lib.resources.shares.GetShareesRemoteOperation.PROPERTY_STATUS;
 
-
 /**
  * Content provider for search suggestions, to search for users and groups existing in an ownCloud server.
  */
@@ -105,10 +95,12 @@ public class UsersAndGroupsSearchProvider extends ContentProvider {
 
     public static final String CONTENT = "content";
 
+    private String AUTHORITY;
     private String DATA_USER;
     private String DATA_GROUP;
     private String DATA_ROOM;
     private String DATA_REMOTE;
+    private String DATA_REMOTE_GROUP;
     private String DATA_EMAIL;
     private String DATA_CIRCLE;
 
@@ -116,6 +108,8 @@ public class UsersAndGroupsSearchProvider extends ContentProvider {
 
     @Inject
     protected UserAccountManager accountManager;
+    @Inject
+    protected UsersAndGroupsSearchConfig searchConfig;
 
     private static final Map<String, ShareType> sShareTypes = new HashMap<>();
 
@@ -125,7 +119,7 @@ public class UsersAndGroupsSearchProvider extends ContentProvider {
     }
 
     private static void setActionShareWith(@NonNull Context context) {
-        ACTION_SHARE_WITH = context.getResources().getString(R.string.users_and_groups_share_with);
+        ACTION_SHARE_WITH = context.getString(R.string.users_and_groups_share_with);
     }
 
     @Nullable
@@ -143,12 +137,13 @@ public class UsersAndGroupsSearchProvider extends ContentProvider {
             return false;
         }
 
-        String AUTHORITY = getContext().getResources().getString(R.string.users_and_groups_search_authority);
+        AUTHORITY = getContext().getString(R.string.users_and_groups_search_authority);
         setActionShareWith(getContext());
         DATA_USER = AUTHORITY + ".data.user";
         DATA_GROUP = AUTHORITY + ".data.group";
         DATA_ROOM = AUTHORITY + ".data.room";
         DATA_REMOTE = AUTHORITY + ".data.remote";
+        DATA_REMOTE_GROUP = AUTHORITY + ".data.remote_group";
         DATA_EMAIL = AUTHORITY + ".data.email";
         DATA_CIRCLE = AUTHORITY + ".data.circle";
 
@@ -156,6 +151,7 @@ public class UsersAndGroupsSearchProvider extends ContentProvider {
         sShareTypes.put(DATA_GROUP, ShareType.GROUP);
         sShareTypes.put(DATA_ROOM, ShareType.ROOM);
         sShareTypes.put(DATA_REMOTE, ShareType.FEDERATED);
+        sShareTypes.put(DATA_REMOTE_GROUP, ShareType.FEDERATED_GROUP);
         sShareTypes.put(DATA_EMAIL, ShareType.EMAIL);
         sShareTypes.put(DATA_CIRCLE, ShareType.CIRCLE);
 
@@ -193,6 +189,10 @@ public class UsersAndGroupsSearchProvider extends ContentProvider {
     }
 
     private Cursor searchForUsersOrGroups(Uri uri) {
+
+        // TODO check searchConfig and filter results
+        Log.d(TAG, "searchForUsersOrGroups: searchConfig only users: " + searchConfig.getSearchOnlyUsers());
+
         String lastPathSegment = uri.getLastPathSegment();
 
         if (lastPathSegment == null) {
@@ -206,15 +206,14 @@ public class UsersAndGroupsSearchProvider extends ContentProvider {
         String userQuery = lastPathSegment.toLowerCase(Locale.ROOT);
 
         // request to the OC server about users and groups matching userQuery
-        GetShareesRemoteOperation searchRequest = new GetShareesRemoteOperation(userQuery, REQUESTED_PAGE,
+        GetShareesRemoteOperation searchRequest = new GetShareesRemoteOperation(userQuery,
+                                                                                REQUESTED_PAGE,
                                                                                 RESULTS_PER_PAGE);
-        RemoteOperationResult result = searchRequest.execute(user, getContext());
+        RemoteOperationResult<ArrayList<JSONObject>> result = searchRequest.execute(user, getContext());
         List<JSONObject> names = new ArrayList<>();
 
         if (result.isSuccess()) {
-            for (Object o : result.getData()) {
-                names.add((JSONObject) o);
-            }
+            names = result.getResultData();
         } else {
             showErrorMessage(result);
         }
@@ -232,6 +231,7 @@ public class UsersAndGroupsSearchProvider extends ContentProvider {
             Uri groupBaseUri = new Uri.Builder().scheme(CONTENT).authority(DATA_GROUP).build();
             Uri roomBaseUri = new Uri.Builder().scheme(CONTENT).authority(DATA_ROOM).build();
             Uri remoteBaseUri = new Uri.Builder().scheme(CONTENT).authority(DATA_REMOTE).build();
+            Uri remoteGroupBaseUri = new Uri.Builder().scheme(CONTENT).authority(DATA_REMOTE_GROUP).build();
             Uri emailBaseUri = new Uri.Builder().scheme(CONTENT).authority(DATA_EMAIL).build();
             Uri circleBaseUri = new Uri.Builder().scheme(CONTENT).authority(DATA_CIRCLE).build();
 
@@ -272,6 +272,11 @@ public class UsersAndGroupsSearchProvider extends ContentProvider {
                         status = new Status(StatusType.OFFLINE, "", "", -1);
                     }
 
+                    if (searchConfig.getSearchOnlyUsers() && type != ShareType.USER) {
+                        // skip all types but users, as E2E secure share is only allowed to users on same server
+                        continue;
+                    }
+
                     switch (type) {
                         case GROUP:
                             displayName = userName;
@@ -281,7 +286,7 @@ public class UsersAndGroupsSearchProvider extends ContentProvider {
 
                         case FEDERATED:
                             if (federatedShareAllowed) {
-                                icon = R.drawable.ic_user;
+                                icon = R.drawable.ic_user_outline;
                                 dataUri = Uri.withAppendedPath(remoteBaseUri, shareWith);
 
                                 if (userName.equals(shareWith)) {
@@ -296,13 +301,29 @@ public class UsersAndGroupsSearchProvider extends ContentProvider {
                             }
                             break;
 
+                        case FEDERATED_GROUP:
+                            if (federatedShareAllowed) {
+                                icon = R.drawable.ic_group;
+                                dataUri = Uri.withAppendedPath(remoteGroupBaseUri, shareWith);
+
+                                if (userName.equals(shareWith)) {
+                                    displayName = name;
+                                    subline = getContext().getString(R.string.remote);
+                                    subline = "";
+                                } else {
+                                    String[] uriSplitted = shareWith.split("@");
+                                    displayName = name;
+                                    subline = getContext().getString(R.string.share_known_remote_on_clarification,
+                                                                     uriSplitted[uriSplitted.length - 1]);
+                                }
+                            }
+                            break;
+
                         case USER:
                             displayName = userName;
                             subline = (status.getMessage() == null || status.getMessage().isEmpty()) ? null :
                                 status.getMessage();
-                            Uri.Builder builder =
-                                Uri.parse("content://com.nextcloud.android.providers.UsersAndGroupsSearchProvider/icon")
-                                    .buildUpon();
+                            Uri.Builder builder = Uri.parse("content://" + AUTHORITY + "/icon").buildUpon();
 
                             builder.appendQueryParameter("shareWith", shareWith);
                             builder.appendQueryParameter("displayName", displayName);

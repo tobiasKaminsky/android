@@ -1,33 +1,35 @@
 /*
- * Nextcloud Android client application
+ * Nextcloud - Android Client
  *
- *  @author Álvaro Brey
- *  Copyright (C) 2022 Álvaro Brey
- *  Copyright (C) 2022 Nextcloud GmbH
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE
- * License as published by the Free Software Foundation; either
- * version 3 of the License, or any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU AFFERO GENERAL PUBLIC LICENSE for more details.
- *
- * You should have received a copy of the GNU Affero General Public
- * License along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * SPDX-FileCopyrightText: 2025 Alper Ozturk <alper.ozturk@nextcloud.com>
+ * SPDX-FileCopyrightText: 2022 Álvaro Brey <alvaro@alvarobrey.com>
+ * SPDX-FileCopyrightText: 2022 Nextcloud GmbH
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
-
 package com.nextcloud.client.database.entity
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
+import com.nextcloud.utils.autoRename.AutoRename
+import com.owncloud.android.datamodel.UploadsStorageManager
+import com.owncloud.android.db.OCUpload
 import com.owncloud.android.db.ProviderMeta.ProviderTableMeta
+import com.owncloud.android.db.UploadResult
+import com.owncloud.android.files.services.NameCollisionPolicy
+import com.owncloud.android.lib.common.utils.Log_OC
+import com.owncloud.android.lib.resources.status.OCCapability
+import java.lang.IllegalArgumentException
 
-@Entity(tableName = ProviderTableMeta.UPLOADS_TABLE_NAME)
+@Entity(
+    tableName = ProviderTableMeta.UPLOADS_TABLE_NAME,
+    indices = [
+        Index(value = [ProviderTableMeta.UPLOADS_ACCOUNT_NAME, ProviderTableMeta.UPLOADS_STATUS]),
+        Index(value = [ProviderTableMeta.UPLOADS_REMOTE_PATH, ProviderTableMeta.UPLOADS_ACCOUNT_NAME]),
+        Index(value = [ProviderTableMeta.UPLOADS_ACCOUNT_NAME, ProviderTableMeta.UPLOADS_LOCAL_PATH])
+    ]
+)
 data class UploadEntity(
     @PrimaryKey(autoGenerate = true)
     @ColumnInfo(name = ProviderTableMeta._ID)
@@ -50,8 +52,13 @@ data class UploadEntity(
     val nameCollisionPolicy: Int?,
     @ColumnInfo(name = ProviderTableMeta.UPLOADS_IS_CREATE_REMOTE_FOLDER)
     val isCreateRemoteFolder: Int?,
+
+    // do not use integer value of upload end timestamp, instead use long version of it
     @ColumnInfo(name = ProviderTableMeta.UPLOADS_UPLOAD_END_TIMESTAMP)
     val uploadEndTimestamp: Int?,
+
+    @ColumnInfo(name = ProviderTableMeta.UPLOADS_UPLOAD_END_TIMESTAMP_LONG)
+    val uploadEndTimestampLong: Long?,
     @ColumnInfo(name = ProviderTableMeta.UPLOADS_LAST_RESULT)
     val lastResult: Int?,
     @ColumnInfo(name = ProviderTableMeta.UPLOADS_IS_WHILE_CHARGING_ONLY)
@@ -63,3 +70,74 @@ data class UploadEntity(
     @ColumnInfo(name = ProviderTableMeta.UPLOADS_FOLDER_UNLOCK_TOKEN)
     val folderUnlockToken: String?
 )
+
+@Suppress("CyclomaticComplexMethod")
+fun UploadEntity.toOCUpload(capability: OCCapability? = null): OCUpload? {
+    val localPath = localPath
+    var remotePath = remotePath
+    if (capability != null && remotePath != null) {
+        remotePath = AutoRename.rename(remotePath, capability)
+    }
+    val upload = try {
+        OCUpload(localPath, remotePath, accountName)
+    } catch (_: IllegalArgumentException) {
+        Log_OC.e("UploadEntity", "OCUpload conversion failed")
+        return null
+    }
+
+    fileSize?.let { upload.fileSize = it }
+    id?.let { upload.uploadId = it.toLong() }
+    status?.let { upload.uploadStatus = UploadsStorageManager.UploadStatus.fromValue(it) }
+    localBehaviour?.let { upload.localAction = it }
+    nameCollisionPolicy?.let { upload.nameCollisionPolicy = NameCollisionPolicy.deserialize(it) }
+    isCreateRemoteFolder?.let { upload.isCreateRemoteFolder = it == 1 }
+    uploadEndTimestampLong?.let { upload.uploadEndTimestamp = it }
+    lastResult?.let { upload.lastResult = UploadResult.fromValue(it) }
+    createdBy?.let { upload.createdBy = it }
+    isWifiOnly?.let { upload.isUseWifiOnly = it == 1 }
+    isWhileChargingOnly?.let { upload.isWhileChargingOnly = it == 1 }
+    folderUnlockToken?.let { upload.folderUnlockToken = it }
+
+    return upload
+}
+
+fun OCUpload.toUploadEntity(): UploadEntity {
+    val id = if (uploadId == -1L) {
+        Log_OC.d(
+            "UploadEntity",
+            "UploadEntity: No existing ID provided (uploadId = -1). " +
+                "Will insert as NEW record and let Room auto-generate the primary key."
+        )
+
+        // needed for the insert new records to the db so that insert DAO function returns new generated id
+        null
+    } else {
+        Log_OC.d(
+            "UploadEntity",
+            "UploadEntity: Using existing ID ($uploadId). " +
+                "This will update/replace the existing database record."
+        )
+
+        uploadId
+    }
+
+    return UploadEntity(
+        id = id?.toInt(),
+        localPath = localPath,
+        remotePath = remotePath,
+        accountName = accountName,
+        fileSize = fileSize,
+        status = uploadStatus?.value,
+        localBehaviour = localAction,
+        nameCollisionPolicy = nameCollisionPolicy?.serialize(),
+        isCreateRemoteFolder = if (isCreateRemoteFolder) 1 else 0,
+        uploadEndTimestamp = 0,
+        uploadEndTimestampLong = uploadEndTimestamp,
+        lastResult = lastResult?.value,
+        createdBy = createdBy,
+        isWifiOnly = if (isUseWifiOnly) 1 else 0,
+        isWhileChargingOnly = if (isWhileChargingOnly) 1 else 0,
+        folderUnlockToken = folderUnlockToken,
+        uploadTime = null
+    )
+}

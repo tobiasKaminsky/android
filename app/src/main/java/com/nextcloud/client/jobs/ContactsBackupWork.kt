@@ -1,21 +1,8 @@
 /*
- * Nextcloud Android client application
+ * Nextcloud - Android Client
  *
- * @author Chris Narkiewicz
- * Copyright (C) 2020 Chris Narkiewicz <hello@ezaquarii.com>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2020 Chris Narkiewicz <hello@ezaquarii.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.jobs
 
@@ -35,10 +22,10 @@ import androidx.work.Worker
 import androidx.work.WorkerParameters
 import com.nextcloud.client.account.User
 import com.nextcloud.client.account.UserAccountManager
-import com.nextcloud.client.files.downloader.PostUploadAction
-import com.nextcloud.client.files.downloader.TransferManagerConnection
-import com.nextcloud.client.files.downloader.UploadRequest
-import com.nextcloud.client.files.downloader.UploadTrigger
+import com.nextcloud.client.files.UploadRequest
+import com.nextcloud.client.jobs.transfer.TransferManagerConnection
+import com.nextcloud.client.jobs.upload.PostUploadAction
+import com.nextcloud.client.jobs.upload.UploadTrigger
 import com.owncloud.android.R
 import com.owncloud.android.datamodel.ArbitraryDataProvider
 import com.owncloud.android.datamodel.FileDataStorageManager
@@ -56,8 +43,8 @@ import java.io.IOException
 import java.io.InputStream
 import java.io.InputStreamReader
 import java.util.Calendar
+import kotlin.time.Duration.Companion.days
 
-@Suppress("LongParameterList") // legacy code
 class ContactsBackupWork(
     appContext: Context,
     params: WorkerParameters,
@@ -71,14 +58,13 @@ class ContactsBackupWork(
         val TAG = ContactsBackupWork::class.java.simpleName
         const val KEY_ACCOUNT = "account"
         const val KEY_FORCE = "force"
-        const val JOB_INTERVAL_MS: Long = 24L * 60L * 60L * 1000L
+        val JOB_INTERVAL_MS = 1.days.inWholeMilliseconds
         const val BUFFER_SIZE = 1024
     }
 
     private var operationsServiceConnection: OperationsServiceConnection? = null
     private var operationsServiceBinder: OperationsServiceBinder? = null
 
-    @Suppress("ReturnCount") // pre-existing issue
     override fun doWork(): Result {
         val accountName = inputData.getString(KEY_ACCOUNT) ?: ""
         if (TextUtils.isEmpty(accountName)) {

@@ -7,17 +7,14 @@
     <string name="account_creation_failed">יצירת החשבון נכשלה</string>
     <string name="account_icon">סמל חשבון</string>
     <string name="account_not_found">החשבון לא נמצא!</string>
-    <string name="action_clear_failed_uploads">פינוי העלאות שנכשלו</string>
     <string name="action_edit">עריכה</string>
     <string name="action_empty_notifications">פינוי כל ההתראות</string>
     <string name="action_empty_trashbin">פינוי סל האשפה</string>
     <string name="action_send_share">שליחה/שיתוף</string>
     <string name="action_switch_grid_view">תצוגת טבלה</string>
     <string name="action_switch_list_view">תצוגת רשימה</string>
-    <string name="actionbar_calendar_contacts_restore">שחזור אנשי קשר ולוח שנה</string>
-    <string name="actionbar_copy">העתק</string>
     <string name="actionbar_mkdir">תיקייה חדשה</string>
-    <string name="actionbar_move">העברה</string>
+    <string name="actionbar_move_or_copy">העברה או העתקה</string>
     <string name="actionbar_open_with">פתיחה על בסיס</string>
     <string name="actionbar_search">חיפוש</string>
     <string name="actionbar_see_details">פרטים</string>
@@ -30,13 +27,15 @@
     <string name="activity_chooser_send_file_title">שליחה</string>
     <string name="activity_chooser_title">שליחת קישור אל…</string>
     <string name="activity_icon">פעילות</string>
-    <string name="add_another_public_share_link">הוספת קישור נוסף</string>
     <string name="add_new_public_share">הוסף קישור שיתוף ציבורי חדש</string>
-    <string name="add_to_cloud">הוספה אל %1$s</string>
-    <string name="advanced_settings">הגדרות מתקדמות</string>
-    <string name="allow_resharing">לאפשר שיתוף מחדש</string>
+    <string name="album_stop_sharing">הפסקת שיתוף</string>
+    <string name="app_config_base_url_title">כתובת בסיס</string>
+    <string name="app_config_proxy_port_title">פתחת מתווך</string>
     <string name="app_widget_description">מצג וידג׳ט אחד מלוח הבקרה</string>
     <string name="appbar_search_in">חפש ב %s</string>
+    <string name="appear_offline">להופיע במצב בלתי מקוון</string>
+    <string name="assistant_screen_delete_task_alert_dialog_title">מחיקת משימה</string>
+    <string name="assistant_task_status_unknown">לא ידוע</string>
     <string name="associated_account_not_found">לא נמצא חשבון משויך!</string>
     <string name="auth_access_failed">גישה נכשלה: %1$s</string>
     <string name="auth_account_does_not_exist">החשבון לא נוסף למכשיר הזה עדיין</string>
@@ -59,7 +58,6 @@
     <string name="auth_ssl_unverified_server_title">לא ניתן לאמת את זהות שרת ה־SSL</string>
     <string name="auth_testing_connection">בדיקת חיבור</string>
     <string name="auth_timeout_title">לשרת לקח יותר מדי זמן להגיב</string>
-    <string name="auth_trying_to_login">מנסה להתחבר…</string>
     <string name="auth_unauthorized">שם משתמש או סימא שגויים</string>
     <string name="auth_unknown_error_exception_title">שגיאה לא ידועה: %1$s</string>
     <string name="auth_unknown_error_http_title">אירעה שגיאת HTTP לא ידועה!</string>
@@ -78,21 +76,26 @@
     <string name="avatar">תמונה מייצגת</string>
     <string name="away">לא פה</string>
     <string name="backup_settings">הגדרות גיבוי</string>
-    <string name="backup_title">גיבוי אנשי קשר ולוח שנה</string>
     <string name="battery_optimization_close">סגירה</string>
     <string name="battery_optimization_disable">השבתה</string>
     <string name="battery_optimization_message">יתכן שבמכשיר שלך מופעל מיטוב סוללה. שליחה אוטומטית עובדת כראוי רק אם היישומון הזה לא נכלל בהגדרה זו.</string>
     <string name="battery_optimization_title">מיטוב סוללה</string>
+    <string name="bottom_navigation_menu_favorites_label">מועדפים</string>
+    <string name="bottom_navigation_menu_files_label">כל הקבצים</string>
+    <string name="bottom_navigation_menu_media_label">מדיה</string>
+    <string name="busy">עסוק</string>
     <string name="calendar">לוח שנה</string>
     <string name="calendars">לוחות שנה</string>
+    <string name="cancel_upload">ביטול</string>
     <string name="certificate_load_problem">קיימת בעיה בטעינת האישור.</string>
     <string name="changelog_dev_version">יומן שינויים של גרסת פיתוח</string>
+    <string name="check_back_later_or_reload">בדוק שוב מאוחר יותר או טען שנית</string>
     <string name="checkbox">תיבת סימון</string>
     <string name="choose_local_folder">נא לבחור בתיקייה מקומית…</string>
     <string name="choose_remote_folder">בחר תיקייה…</string>
+    <string name="clear">פינוי</string>
     <string name="clear_notifications_failed">פינוי ההתראות נכשל.</string>
-    <string name="clear_status_message">פינוי הודעת המצב</string>
-    <string name="clear_status_message_after">מחיקת הודעת מצב לאחר</string>
+    <string name="clear_status_after">לפנות את המצב לאחר</string>
     <string name="clipboard_label">טקסט הועתק מ- %1$s</string>
     <string name="clipboard_no_text_to_copy">לא התקבל טקסט להעתקה ללוח הגזירים</string>
     <string name="clipboard_text_copied">הקישור הועתק</string>
@@ -115,7 +118,6 @@
     <string name="common_remove">מחיקה</string>
     <string name="common_rename">שינוי שם</string>
     <string name="common_save">שמירה</string>
-    <string name="common_select">בחירה</string>
     <string name="common_send">שליחה</string>
     <string name="common_share">שיתוף</string>
     <string name="common_skip">דלג</string>
@@ -145,7 +147,6 @@
     <string name="confirmation_remove_folder_alert">למחוק את %1$s על תוכנו?</string>
     <string name="confirmation_remove_folders_alert">למחוק את הפריטים הנבחרים ואת תוכנם?</string>
     <string name="confirmation_remove_local">מקומי בלבד</string>
-    <string name="conflict_dialog_error">שגיאה ביצירת תיבת דו־שיח סתירה!</string>
     <string name="conflict_local_file">קובץ מקומי</string>
     <string name="conflict_message_description">בבחירה של שתי הגרסאות, יתווסף מספר בסוף שמו של הקובץ המקומי.</string>
     <string name="conflict_server_file">קובץ בשרת</string>
@@ -157,32 +158,32 @@
     <string name="contacts_preferences_import_scheduled">הייבוא תוזמן והוא יתחיל בעוד זמן קצר</string>
     <string name="contacts_preferences_no_file_found">לא נמצא קובץ</string>
     <string name="contacts_preferences_something_strange_happened">לא ניתן למצוא את הגיבוי האחרון שלך!</string>
-    <string name="copied_to_clipboard">הועתק ללוח הגזירים</string>
+    <string name="conversation_screen_title">דיונים</string>
     <string name="copy_file_error">אירעה שגיאה בזמן ניסיון להעתיק את הקובץ או התיקייה</string>
     <string name="copy_file_invalid_into_descendent">אי אפשר להעתיק תיקייה לתוך אחת התיקיות שתחתיה</string>
     <string name="copy_file_invalid_overwrite">הקובץ כבר קיים בתיקיית היעד</string>
     <string name="copy_file_not_found">לא ניתן להעתיק, אנא בדוק אם הקובץ קיים</string>
     <string name="copy_link">העתקת קישור</string>
     <string name="copy_move_to_encrypted_folder_not_supported">נכון לעכשיו, אין תמיכה בהעתקה/העברה לתיקייה מוצפנת.</string>
-    <string name="copy_to">העתק אל…</string>
     <string name="could_not_download_image">לא ניתן להוריד את התמונה המלאה</string>
     <string name="could_not_retrieve_shares">לא ניתן למשוך את השיתופים</string>
     <string name="could_not_retrieve_url">לא ניתן לקבל כתובת</string>
     <string name="create">יצירה</string>
+    <string name="create_album_dialog_title">אלבום חדש</string>
     <string name="create_dir_fail_msg">לא ניתן ליצור תיקייה</string>
-    <string name="create_new">יצירת חדש</string>
-    <string name="create_new_document">יצירת מסמך חדש</string>
-    <string name="create_new_folder">יצירת תיקייה חדשה</string>
-    <string name="create_new_presentation">יצירת מצגת חדשה</string>
-    <string name="create_new_spreadsheet">יצירת גיליון חדש</string>
-    <string name="create_rich_workspace">הוספת פרטי תיקייה</string>
-    <string name="creates_rich_workspace">יוצר פרטי תיקייה</string>
+    <string name="create_document">מסמך</string>
+    <string name="create_folder">תיקייה</string>
+    <string name="create_new">חדש</string>
+    <string name="create_new_document">מסמך חדש</string>
+    <string name="create_new_presentation">מצגת חדשה</string>
+    <string name="create_new_spreadsheet">גיליון נתונים חדש</string>
+    <string name="create_presentation">מצגת</string>
+    <string name="create_spreadsheet">גיליון נתונים</string>
     <string name="credentials_disabled">פרטי גישה מושבתים</string>
     <string name="daily_backup">גיבוי יומי</string>
     <string name="data_to_back_up">נתונים לגיבוי</string>
     <string name="default_credentials_wrong">פרטי הגישה שגויים</string>
     <string name="delete_account">הסרת חשבון</string>
-    <string name="delete_account_warning">להסיר את החשבון %s ולמחוק את כל הקבצים המקומיים?\n\nלא ניתן לבטל מחיקה.</string>
     <string name="delete_entries">מחיקת רשומות</string>
     <string name="delete_link">מחק קישור</string>
     <string name="deselect_all">ביטול בחירה</string>
@@ -214,13 +215,13 @@
     <string name="drawer_community">קהילה</string>
     <string name="drawer_header_background">תמונת רקע של כותרת מגירה</string>
     <string name="drawer_item_activities">פעילויות</string>
+    <string name="drawer_item_album">אלבומים</string>
     <string name="drawer_item_all_files">כל הקבצים</string>
     <string name="drawer_item_favorites">מועדפים</string>
     <string name="drawer_item_gallery">מדיה</string>
     <string name="drawer_item_home">בית</string>
     <string name="drawer_item_notifications">התרעות</string>
     <string name="drawer_item_on_device">בהתקן</string>
-    <string name="drawer_item_recently_modified">השתנו לאחרונה</string>
     <string name="drawer_item_shared">שותף</string>
     <string name="drawer_item_trashbin">קבצים שנמחקו</string>
     <string name="drawer_item_uploads_list">העלאות</string>
@@ -230,14 +231,10 @@
     <string name="drawer_quota_unlimited">%1$s בשימוש</string>
     <string name="drawer_synced_folders">העלאה אוטומטית</string>
     <string name="ecosystem_apps_display_more">יותר</string>
-    <string name="ecosystem_apps_display_notes">פתקים</string>
-    <string name="ecosystem_apps_display_talk">שיחה</string>
-    <string name="ecosystem_apps_notes">פתקים של Nextcloud</string>
     <string name="encrypted">הגדרה כמוצפן</string>
     <string name="end_to_end_encryption_confirm_button">הגדרת הצפנה</string>
     <string name="end_to_end_encryption_decrypting">מתבצע פענוח…</string>
     <string name="end_to_end_encryption_dialog_close">סגירה</string>
-    <string name="end_to_end_encryption_enter_password">נא להקליד ססמה כדי לפענח את המפתח הפרטי.</string>
     <string name="end_to_end_encryption_folder_not_empty">התיקייה הזאת אינה ריקה</string>
     <string name="end_to_end_encryption_generating_keys">נוצרים מפתחות חדשים…</string>
     <string name="end_to_end_encryption_keywords_description">כל 12 המילים יחד מתגבשות לכדי ססמה חזקה מאוד, שמאפשרת לך לצפות ולהשתמש בקבצים המוצפנים שלך. נא לכתוב אותה ולשמור במקום בטוח.</string>
@@ -259,9 +256,9 @@
     <string name="error_retrieving_templates">קבלת התבניות נכשלה</string>
     <string name="error_starting_direct_camera_upload">הפעלת המצלמה נכשלה</string>
     <string name="etm_accounts">חשבונות</string>
+    <string name="etm_background_job_created">יצירה</string>
     <string name="etm_background_job_name">שם המשימה</string>
     <string name="etm_background_job_progress">תהליך</string>
-    <string name="etm_background_job_started">התחלה</string>
     <string name="etm_background_job_state">מצב</string>
     <string name="etm_background_job_user">משתמש</string>
     <string name="etm_background_job_uuid">מזהה ייחודי</string>
@@ -273,17 +270,18 @@
     <string name="etm_background_jobs_stop_test_job">עצירת משימת בדיקה</string>
     <string name="etm_migrations">נדידות (שדרוגי יישומים)</string>
     <string name="etm_preferences">העדפות</string>
-    <string name="etm_title">מצב בדיקת מהנדסים</string>
     <string name="etm_transfer">העברת קבצים</string>
     <string name="etm_transfer_type">העברה</string>
     <string name="etm_transfer_type_download">הורדה</string>
     <string name="etm_transfer_type_upload">העלאה</string>
     <string name="fab_label">הוספה או העלאה</string>
     <string name="failed_to_download">העברת הקובץ למנהל ההורדות נכשלה</string>
+    <string name="failed_to_load_tags">טעינת התגיות נכשלה</string>
     <string name="failed_to_print">הדפסת הקובץ נכשלה</string>
     <string name="failed_to_start_editor">התחלת העורך נכשלה</string>
     <string name="favorite">הוספה למועדפים</string>
     <string name="favorite_icon">סימון כמועדף</string>
+    <string name="fifteenMinutes">15 דקות</string>
     <string name="file_delete">מחיקה</string>
     <string name="file_detail_activity_error">שגיאה בקבלת הפעילויות לקובץ</string>
     <string name="file_details_no_content">טעינת הפרטים נכשלה</string>
@@ -295,14 +293,12 @@
     <string name="file_list_empty_headline_search">לא נמצאו תוצאות בתקיה זו</string>
     <string name="file_list_empty_headline_server_search">לא נמצאו תוצאות</string>
     <string name="file_list_empty_moving">אין כאן כלום. ניתן להוסיף תיקייה.</string>
-    <string name="file_list_empty_recently_modified">לא נמצאו קבצים שנערכו בשבוע החולף</string>
     <string name="file_list_empty_search">יכול להיות שזה בתיקייה אחרת?</string>
     <string name="file_list_empty_shared_headline">שום דבר לא שותף עדיין</string>
     <string name="file_list_folder">תקיה</string>
     <string name="file_list_loading">בטעינה…</string>
     <string name="file_list_no_app_for_file_type">לא הוגדר יישומון לטיפול בסוג קובץ שכזה.</string>
     <string name="file_list_seconds_ago">לפני מספר שניות</string>
-    <string name="file_management_permission">נדרשות הרשאות</string>
     <string name="file_management_permission_optional">הרשאות אחסון</string>
     <string name="file_migration_checking_destination">בודק יעד…</string>
     <string name="file_migration_cleaning">מתבצע ניקיון…</string>
@@ -328,7 +324,7 @@
     <string name="file_not_synced">לא ניתן לסנכרן את הקובץ. הגרסה הזמינה העדכניות ביותר שלו מוצגת.</string>
     <string name="file_rename">שינוי שם</string>
     <string name="file_version_restored_error">שחזור גרסת הקובץ נתקלה בשגיאה!</string>
-    <string name="file_version_restored_successfully">גרסת הקובץ שוחזרה בהצלחה.</string>
+    <string name="filedetails_details">פרטים</string>
     <string name="filedetails_download">הורדה</string>
     <string name="filedetails_export">ייצוא</string>
     <string name="filedetails_renamed_in_upload_msg">שם הקובץ %1$s השתנה במהלך ההעלאה</string>
@@ -339,27 +335,28 @@
     <string name="filename_forbidden_charaters_from_server">שם הקובץ מכיל לפחות תו אחד שגוי</string>
     <string name="filename_hint">שם קובץ</string>
     <string name="first_run_1_text">ניתן להשאיר את הנתונים שלך מאובטחים ותחת שליטה</string>
-    <string name="first_run_2_text">שיתוף פעולה והעברת קבצים באופן מאובטח</string>
-    <string name="first_run_4_text">שיתוף מסך, פגישות מקוונות וכנסים מקוונים</string>
     <string name="folder_already_exists">התיקייה כבר קיימת</string>
     <string name="folder_confirm_create">יצירה</string>
     <string name="folder_list_empty_headline">אין כאן תיקיות</string>
-    <string name="folder_picker_choose_button_text">בחירה</string>
+    <string name="folder_picker_choose_button_text">בחר</string>
+    <string name="folder_picker_choose_caption_text">נא לבחור תיקיית יעד</string>
+    <string name="folder_picker_copy_button_text">העתקה</string>
+    <string name="folder_picker_move_button_text">העברה</string>
     <string name="forbidden_permissions">אין לך הרשאה %s</string>
     <string name="forbidden_permissions_copy">להעתיק את הקובץ הזה</string>
     <string name="forbidden_permissions_create">ליצור את הקובץ הזה</string>
     <string name="forbidden_permissions_delete">למחוק קובץ זה</string>
     <string name="forbidden_permissions_move">להעביר את הקובץ הזה</string>
     <string name="forbidden_permissions_rename">לשנות שם לקובץ זה</string>
-    <string name="foreground_service_download">קבצים מתקבלים…</string>
     <string name="foreground_service_upload">קבצים מועלים…</string>
     <string name="foreign_files_fail">חלק מהקבצים לא הועברו</string>
     <string name="foreign_files_local_text">מקומי: %1$s</string>
     <string name="foreign_files_move">להעביר הכול</string>
     <string name="foreign_files_remote_text">מרוחק: %1$s</string>
-    <string name="foreign_files_success">כל הקבצים הועברו</string>
     <string name="forward">העברה</string>
     <string name="fourHours">4 שעות</string>
+    <string name="governance_file_retention_label">שמירת קבצים</string>
+    <string name="governance_no_label">ללא</string>
     <string name="hint_name">שם</string>
     <string name="hint_note">מסר</string>
     <string name="hint_password">ססמה</string>
@@ -371,9 +368,6 @@
     <string name="invalid_url">כתובת שגויה</string>
     <string name="invisible">נסתרת</string>
     <string name="link">קישור</string>
-    <string name="link_share_allow_upload_and_editing">לאפשר העלאה ועריכה</string>
-    <string name="link_share_file_drop">השלכת קבצים (העלאה בלבד)</string>
-    <string name="link_share_view_only">לצפיה בלבד</string>
     <string name="list_layout">פריסה מוצגת</string>
     <string name="load_more_results">לטעון עוד תוצאות</string>
     <string name="local_file_list_empty">אין קבצים בתיקייה זו:</string>
@@ -394,16 +388,7 @@
     <string name="manage_space_clear_data">ניקוי מידע</string>
     <string name="manage_space_description">הגדרות, מסד נתונים ואישורי שרת של מידע %1$s ימחק לחלוטין. \n\nקבצים שירדו ישארו ללא שינוי.\n\nהתהליך ימשך זמן מה.</string>
     <string name="manage_space_title">ניהול מקום</string>
-    <string name="media_err_io">לא ניתן לקרוא את קובץ המדיה</string>
-    <string name="media_err_malformed">לקובץ המידע יש קידוד שגוי</string>
-    <string name="media_err_timeout">הניסיון לנגן את הקובץ ארך זמן רב מדי</string>
-    <string name="media_err_unknown">נגן המדיה המובנה לא יכול לנגן את קובץ המדיה</string>
-    <string name="media_err_unsupported">מקודד המדיה אינו נתמך</string>
-    <string name="media_forward_description">לחצן הרצה קדימה</string>
-    <string name="media_notif_ticker">נגן מוזיקה %1$s</string>
-    <string name="media_play_pause_description">לחצן ניגון או השהייה</string>
-    <string name="media_rewind_description">לחצן החזרה אחורה</string>
-    <string name="media_state_playing">%1$s (מתגנן)</string>
+    <string name="manage_tags">ניהול תגיות</string>
     <string name="menu_item_sort_by_date_newest_first">החדשים ביותר ראשונים</string>
     <string name="menu_item_sort_by_date_oldest_first">הישנים ביותר ראשונים</string>
     <string name="menu_item_sort_by_name_a_z">א - ת</string>
@@ -414,18 +399,16 @@
     <string name="move_file_error">אירעה שגיאה בזמן ניסיון להעביר את הקובץ או התיקייה</string>
     <string name="move_file_invalid_into_descendent">אי אפשר להעביר תיקייה לתוך אחת התיקיות שתחתיה.</string>
     <string name="move_file_invalid_overwrite">הקובץ כבר קיים בתיקיית היעד</string>
-    <string name="move_to">העבר אל…</string>
+    <string name="mute_all_notifications">השתקת כל ההתראות</string>
     <string name="network_error_socket_exception">אירעה שגיאה במהלך ההתחברות לשרת</string>
     <string name="new_comment">תגובה חדשה…</string>
     <string name="new_media_folder_detected">זוהתה תיקיית מדיה עם %1$s</string>
     <string name="new_media_folder_photos">תמונות</string>
     <string name="new_media_folder_videos">סרטונים</string>
-    <string name="new_notification">התראה חדשה</string>
     <string name="new_version_was_created">נוצרה גרסה חדשה</string>
     <string name="no_browser_available">אין יישומון שיכול לטפל בקישורים</string>
     <string name="no_mutliple_accounts_allowed">מותר חשבון אחד בלבד</string>
     <string name="no_pdf_app_available">אין יישומים זמינים לטיפול ב־PDF</string>
-    <string name="note_confirm">שליחה</string>
     <string name="note_could_not_sent">לא ניתן לשלוח מסר</string>
     <string name="notification_action_failed">הפעלת הפעולה נכשלה.</string>
     <string name="notification_channel_download_description">מציג תהליך הורדה</string>
@@ -450,7 +433,6 @@
     <string name="outdated_server">השרת הגיע לתום חייו, נא לשדרג!</string>
     <string name="overflow_menu">תפריט עוד</string>
     <string name="pass_code_configure_your_pass_code">יש להכניס את הקוד שלך</string>
-    <string name="pass_code_configure_your_pass_code_explanation">בכל פעם שיישום זה נפתח יהיה צורך להכניס את הקוד</string>
     <string name="pass_code_enter_pass_code">נא להקליד את מילת הצופן שלך</string>
     <string name="pass_code_mismatch">הקודים אינם זהים</string>
     <string name="pass_code_reenter_your_pass_code">יש להכניס את הקוד שנית</string>
@@ -458,15 +440,11 @@
     <string name="pass_code_removed">מילת צופן נמחקה</string>
     <string name="pass_code_stored">הקוד נשמר</string>
     <string name="pass_code_wrong">קוד שגוי</string>
+    <string name="pause_upload">השהה</string>
     <string name="permission_allow">לאפשר</string>
     <string name="permission_deny">לדחות</string>
-    <string name="permission_storage_access">נדרשות הרשאות נוספות כדי להעלות ולהוריד קבצים</string>
     <string name="picture_set_as_no_app">לא נמצא יישומון להגדיר אתו תמונה</string>
-    <string name="placeholder_fileSize">389 ק״ב</string>
-    <string name="placeholder_filename">placeholder.txt</string>
-    <string name="placeholder_media_time">12:23:45</string>
-    <string name="placeholder_sentence">זהו ממלא מקום</string>
-    <string name="placeholder_timestamp">2012/05/18 12:23 PM</string>
+    <string name="player_media_controls_close_action_title">סגירה</string>
     <string name="power_save_check_dialog_message">השבתת בדיקת חיסכון בחשמל גורמת להעלאת קבצים כשהסוללה חלשה!</string>
     <string name="pref_behaviour_entries_delete_file">נמחק</string>
     <string name="pref_behaviour_entries_keep_file">נשמר בתיקייה מקורית</string>
@@ -477,15 +455,14 @@
     <string name="pref_instant_name_collision_policy_entries_rename">לשנות את שם הגרסה החדשה</string>
     <string name="pref_instant_name_collision_policy_title">מה לעשות אם הקובץ כבר קיים?מה לעשות אם הקובץ קיים?</string>
     <string name="prefs_add_account">הוספת חשבון</string>
-    <string name="prefs_calendar_contacts">סנכרון לוח שנה ואנשי קשר</string>
     <string name="prefs_calendar_contacts_no_store_error">לא מותקנים F-Droid או Google Play</string>
-    <string name="prefs_calendar_contacts_summary">הגדרת DAVx5 (לשעבר DAVdroid) (v1.3.0+‎) לחשבון הנוכחי</string>
-    <string name="prefs_calendar_contacts_sync_setup_successful">הגדרת סנכרון לוח שנה ואנשי קשר</string>
     <string name="prefs_category_about">על אודות</string>
     <string name="prefs_category_details">פרטים</string>
     <string name="prefs_category_dev">פיתוח</string>
+    <string name="prefs_category_files">קבצים</string>
     <string name="prefs_category_general">כללי</string>
     <string name="prefs_category_more">יותר</string>
+    <string name="prefs_category_sync">סנכרון</string>
     <string name="prefs_daily_contact_backup_summary">גיבוי יומי של אנשי הקשר שלך</string>
     <string name="prefs_e2e_mnemonic">תיבת זיכרון להצפנה מקצה לקצה </string>
     <string name="prefs_e2e_no_device_credentials">על מנת להציג שינון, הפעל את אישורי המכשיר.</string>
@@ -496,7 +473,6 @@
     <string name="prefs_imprint">חותמת</string>
     <string name="prefs_instant_behaviour_dialogTitle">קובץ מקורי יהיה…</string>
     <string name="prefs_instant_behaviour_title">תיקייה מקורית תהיה…</string>
-    <string name="prefs_instant_upload_path_use_subfolders_summary">אחסון בתת־תיקיות בהפרדה לשנה וחודש</string>
     <string name="prefs_instant_upload_path_use_subfolders_title">שימוש בתת־תיקיות</string>
     <string name="prefs_license">רישיון</string>
     <string name="prefs_lock">מילת הצופן של היישומון</string>
@@ -526,21 +502,24 @@
     <string name="recommend_subject">לנסות את %1$s בהתקן שלך!</string>
     <string name="recommend_text">אשמח להזמין אותך להשתמש ב־%1$s במכשיר שלך.\nניתן להוריד מכאן: %2$s</string>
     <string name="recommend_urls">%1$s או %2$s</string>
+    <string name="recommended_files_title">קבצים מומלצים</string>
     <string name="reload">טעינה מחדש</string>
     <string name="remote_file_fetch_failed">איתור הקובץ נכשל!</string>
+    <string name="remove">הסרה</string>
     <string name="remove_fail_msg">המחיקה נכשלה</string>
     <string name="remove_notification_failed">הסרת ההתראה נכשלה.</string>
     <string name="remove_push_notification">הסרה</string>
     <string name="remove_success_msg">נמחק</string>
+    <string name="rename_dialog_button">שינוי שם</string>
     <string name="rename_dialog_title">נא להזין שם חדש</string>
     <string name="rename_local_fail_msg">לא ניתן לשנות שם של עותק מקומי, נא לנסות שם אחר</string>
     <string name="rename_server_fail_msg">אי אפשר לשנות שם, השם כבר תפוס</string>
-    <string name="reshare_not_allowed">שיתוף מחדש אסור</string>
-    <string name="resharing_is_not_allowed">אסור לשתף מחדש</string>
-    <string name="resized_image_not_possible_download">אין תמונה מוקטנת. להוריד את התמונה המלאה?</string>
+    <string name="request_account_deletion">בקשת מחיקת חשבון</string>
     <string name="restore">שחזור קובץ</string>
     <string name="restore_button_description">שחזור קובץ שנמחק</string>
+    <string name="restore_item">שחזור</string>
     <string name="retrieving_file">הקובץ מתקבל…</string>
+    <string name="retry">ניסיון חוזר</string>
     <string name="richdocuments_failed_to_load_document">טעינת המסמך נכשלה!</string>
     <string name="scanQR_description">כניסה עם קוד QR</string>
     <string name="screenshot_01_gridView_heading">הגנה על הנתונים שלך</string>
@@ -552,22 +531,18 @@
     <string name="screenshot_04_accounts_heading">כל החשבונות שלך</string>
     <string name="screenshot_04_accounts_subline">במקום אחד</string>
     <string name="screenshot_05_autoUpload_heading">העלאה אוטומטית</string>
-    <string name="screenshot_05_autoUpload_subline">לתמונות ולסרטונים שלך</string>
-    <string name="screenshot_06_davdroid_heading">לוח שנה ואנשי קשר</string>
-    <string name="screenshot_06_davdroid_subline">סנכרון עם DAVx5</string>
     <string name="select_all">בחר הכל</string>
     <string name="select_template">בחירת תבנית</string>
     <string name="send">שליחה</string>
-    <string name="send_note">שליחת מסר לנמען</string>
-    <string name="sendbutton_description">סמל כפתור שליחה</string>
     <string name="set_as">הגדרה בתור</string>
+    <string name="set_online_status">מצב מקוון</string>
     <string name="set_picture_as">שימוש בתמונה בתור</string>
-    <string name="set_status">הגדרת מצב</string>
-    <string name="set_status_message">הגדרת הודעת מצב</string>
     <string name="share">שיתוף</string>
+    <string name="share_create_permission">יצירה</string>
+    <string name="share_delete_permission">מחיקה</string>
     <string name="share_dialog_title">שיתוף</string>
+    <string name="share_edit_permission">עריכה</string>
     <string name="share_expiration_date_format">%1$s</string>
-    <string name="share_expiration_date_label">תפוגה ב־%1$s</string>
     <string name="share_file">שיתוף %1$s</string>
     <string name="share_group_clarification">%1$s (קבוצה)</string>
     <string name="share_internal_link">שיתוף קישור פנימי</string>
@@ -580,9 +555,10 @@
     <string name="share_link_password_title">הכנסת סיסמא</string>
     <string name="share_no_expiration_date_label">הגדרת תאריך תפוגה</string>
     <string name="share_no_password_title">הגדרת ססמה</string>
-    <string name="share_password_title">מוגן בססמה</string>
     <string name="share_permission_can_edit">ניתן לערוך</string>
     <string name="share_permission_view_only">לצפיה בלבד</string>
+    <string name="share_re_share_permission">שתף</string>
+    <string name="share_read_permission">קריאה</string>
     <string name="share_remote_clarification">%1$s (נשלט מרחוק)</string>
     <string name="share_room_clarification">%1$s (דיון)</string>
     <string name="share_send_note">מסר לנמען</string>
@@ -591,22 +567,17 @@
     <string name="share_via_link_section_title">קישור לשיתוף</string>
     <string name="share_via_link_send_link_label">שליחת קישור</string>
     <string name="share_via_link_unset_password">ביטול הגדרה</string>
-    <string name="share_with_title">שיתף עם…</string>
     <string name="shared_avatar_desc">תמונה ייצוגית מהמשתמש השיתופי</string>
     <string name="shared_icon_share">שיתוף</string>
     <string name="shared_icon_shared">משותף</string>
     <string name="shared_icon_shared_via_link">משותף דרך קישור</string>
     <string name="shared_with_you_by">שותף אתך על ידי %1$s</string>
     <string name="sharee_add_failed">הוספת נמען השיתוף נכשלה</string>
+    <string name="show_all">להציג הכול</string>
+    <string name="show_less">להציג פחות</string>
     <string name="signup_with_provider">נא להירשם עם ספק</string>
     <string name="single_sign_on_request_token" formatted="true">לאפשר ל־%1$s לגשת לחשבון שלך ב־ Nextcloud %2$s?</string>
     <string name="sort_by">מיון לפי</string>
-    <string name="sort_by_modification_date_ascending">החדש ביותר ראשון</string>
-    <string name="sort_by_modification_date_descending">הישן ביותר ראשון</string>
-    <string name="sort_by_name_ascending">א - ת</string>
-    <string name="sort_by_name_descending">ת - א</string>
-    <string name="sort_by_size_ascending">הקטן ביותר ראשון</string>
-    <string name="sort_by_size_descending">הגדול ביותר ראשון</string>
     <string name="ssl_validator_btn_details_hide">הסתרה</string>
     <string name="ssl_validator_btn_details_see">פרטים</string>
     <string name="ssl_validator_header">לא ניתן לאמת את זהות השרת</string>
@@ -638,27 +609,11 @@
     <string name="storage_description_default">ברירת מחדל</string>
     <string name="storage_documents">מסמכי</string>
     <string name="storage_downloads">הורדות</string>
+    <string name="storage_external_storage">אחסון חיצוני</string>
     <string name="storage_internal_storage">אחסון פנימי</string>
     <string name="storage_movies">סרטים</string>
     <string name="storage_music">מוזיקה</string>
     <string name="storage_pictures">תמונות</string>
-    <string name="store_full_desc">פלטפורמת הפרודוקטיביות בהארחה עצמית השומרת אתכם בשליטה.
-
-תכונות:
-* ממשק קל ומודרני המותאם לנושא השרת שלך
-העלה קבצים לשרת Nextcloud שלך
-* שתף אותם עם אחרים
-* שמור על סנכרון בין הקבצים והתיקיות המועדפים שלך
-* חפש בכל התיקיות בשרת שלך
-* העלאה אוטומטית לתמונות וסרטונים שצולמו על ידי המכשיר שלך
-* התעדכן בהתראות
-* תמיכה מרובת חשבונות
-* גישה מאובטחת לנתונים שלך באמצעות טביעת אצבע או מספר זיהוי אישי
-* שילוב עם DAVx5 (שכונה בעבר DAVdroid) להגדרה קלה של סנכרון אנשי קשר בלוח השנה
-
-אנא דווח על כל הנושאים בכתובת https://github.com/nextcloud/android/issues ודן באפליקציה הזו בכתובת https://help.nextcloud.com/c/clients/android\n\n חדש ל- Nextcloud? Nextcloud הוא שרת שיתוף ותקשורת פרטי לסנכרון קבצים. זו תוכנת libre ותוכל לארח אותה בעצמך או לשלם לחברה שתעשה את זה בשבילך. בדרך זו אתה שולט בתמונות שלך, בלוח השנה ובנתוני הקשר שלך, המסמכים שלך וכל השאר.
-
-בדוק את Nextcloud בכתובת https://nextcloud.com</string>
     <string name="store_full_dev_desc">פלטפורמת הפרודוקטיביות בהארחה עצמית השומרת אתכם בשליטה.
 זוהי גרסת הפיתוח הרשמית, הכוללת דגימה יומית של כל פונקציונליות חדשה שלא נבדקה, העלולה לגרום לחוסר יציבות ואובדן נתונים. האפליקציה מיועדת למשתמשים שמוכנים לבדוק ולדווח על באגים במידה והם יתרחשו. אל תשתמש בו לעבודה היצרנית שלך!
 
@@ -667,9 +622,10 @@
     <string name="store_short_dev_desc">פלטפורמת כלי ההפקה באירוח עצמי שמעניקה לך שליטה מלאה (מהדורת המפתחים)</string>
     <string name="stream">הזרמה עם…</string>
     <string name="stream_not_possible_headline">אין תמיכה בהזרמה פנימית</string>
-    <string name="stream_not_possible_message">נא להוריד את המדיה במקום או להשתמש ביישומון חיצוני.</string>
+    <string name="sub_folder_rule_year">שנה</string>
     <string name="subject_shared_with_you">\"%1$s\" שותף אתך</string>
     <string name="subject_user_shared_with_you">%1$s משתף \"%2$s\" אתך</string>
+    <string name="sync">סנכרון</string>
     <string name="sync_conflicts_in_favourites_ticker">נמצאו התנגשויות</string>
     <string name="sync_current_folder_was_removed">התיקייה %1$s לא קיימת יותר</string>
     <string name="sync_fail_content">לא ניתן לסנכרן את %1$s</string>
@@ -692,11 +648,11 @@
     <string name="synced_folders_configure_folders">הגדרת תיקיות</string>
     <string name="synced_folders_new_info">ההעלאה המידית שופצה לחלוטין. עליך להגדיר העלאה אוטומטית מהתפריט הראשי.\n\nמזמינים אותך ליהנות מההעלאה האוטומטית החדשה והמשופרת.</string>
     <string name="synced_folders_no_results">לא נמצאו תיקיות מדיה</string>
-    <string name="synced_folders_preferences">העדפות להעלאה אוטומטית</string>
     <string name="synced_folders_preferences_folder_path">עבור %1$s</string>
     <string name="synced_folders_type">סוג</string>
     <string name="synced_icon">מסונכרן</string>
     <string name="tags">תגיות</string>
+    <string name="terms_of_service_title">תנאי שירות</string>
     <string name="test_server_button">בדיקת החיבור לשרת</string>
     <string name="thirtyMinutes">30 דקות</string>
     <string name="thisWeek">השבוע</string>
@@ -704,24 +660,28 @@
     <string name="thumbnail_for_existing_file_description">תמונה ממוזערת לקובץ קיים</string>
     <string name="thumbnail_for_new_file_desc">תמונה ממוזערת לקובץ חדש</string>
     <string name="today">היום</string>
-    <string name="trashbin_activity_title">קבצים שנמחקו</string>
     <string name="trashbin_empty_headline">אין קבצים שנמחקו</string>
     <string name="trashbin_empty_message">תהיה לך אפשרות לשחזר קבצים שנמחקו דרך כאן.</string>
     <string name="trashbin_file_not_deleted">לא ניתן למחוק את הקובץ %1$s!</string>
     <string name="trashbin_file_not_restored">לא ניתן לשחזר את הקובץ %1$s!</string>
+    <string name="trashbin_file_remove">מחיקה לצמיתות</string>
     <string name="trashbin_not_emptied">לא ניתן למחוק קבצים לצמיתות!</string>
+    <string name="unexpected_error_occurred">אירעה שגיאה בלתי צפויה</string>
+    <string name="unknown">לא ידוע</string>
     <string name="unlock_file">שחרור קובץ</string>
     <string name="unread_comments">יש תגובות שלא נקראו</string>
     <string name="unset_encrypted">ביטול הגדרת ההצפנה</string>
-    <string name="unset_favorite">הסרה מהמועדפים</string>
     <string name="unshare_link_forbidden_permissions">לבטל שיתוף לקובץ זה</string>
     <string name="unsharing_failed">ביטול השיתוף נכשל</string>
     <string name="untrusted_domain">גישה דרך שם מתחם בלתי מהימן. נא לעיין בתיעוד לקבלת פרטים נוספים.</string>
     <string name="update_link_forbidden_permissions">לעידכון השיתוף הזה</string>
     <string name="updating_share_failed">עדכון השיתוף נכשל</string>
+    <string name="upload_action_failed_clear">פינוי העלאות שנכשלו</string>
+    <string name="upload_action_failed_retry">לנסות העלאות שנכשלו מחדש</string>
     <string name="upload_cannot_create_file">לא ניתן ליצור קובץ מקומי</string>
     <string name="upload_chooser_title">העלאה מהמיקום…</string>
     <string name="upload_content_from_other_apps">העלאת תוכן מיישומונים אחרים</string>
+    <string name="upload_direct_camera_photo">תמונה</string>
     <string name="upload_direct_camera_upload">העלאה מהמצלמה</string>
     <string name="upload_file_dialog_filename">שם קובץ</string>
     <string name="upload_file_dialog_filetype">סוג קובץ</string>
@@ -740,7 +700,6 @@
     <string name="upload_lock_failed">נעילת התיקייה נכשלה</string>
     <string name="upload_old_android">הצפנה אפשרית רק עם &gt;= Android 5.0</string>
     <string name="upload_query_move_foreign_files">מחסור במקום מונע את העתקת הקבצים הנבחרים לתוך התיקייה %1$s. להעביר אותם לשם במקום?</string>
-    <string name="upload_sync_conflict">סתירת סנכרון, נא לפתור ידנית</string>
     <string name="upload_unknown_error">שגיאה בלתי ידועה</string>
     <string name="uploader_btn_alternative_text">בחר</string>
     <string name="uploader_btn_upload_text">העלאה</string>
@@ -769,9 +728,10 @@
     <string name="uploader_wrn_no_account_setup_btn_text">הגדרות</string>
     <string name="uploader_wrn_no_account_text">לא מוגדרים חשבונות %1$s במכשיר שלך. יש להגדיר חשבות תחילה.</string>
     <string name="uploader_wrn_no_account_title">לא נמצא חשבון</string>
+    <string name="uploads_view_group_completed_uploads">הושלם</string>
     <string name="uploads_view_group_current_uploads">נוכחי</string>
     <string name="uploads_view_group_failed_uploads">הפעלה מחדש ממתינה/נכשלה.</string>
-    <string name="uploads_view_group_finished_uploads">הועלה</string>
+    <string name="uploads_view_group_manually_cancelled_uploads">בוטל</string>
     <string name="uploads_view_later_waiting_to_upload">ממתין להעלאה</string>
     <string name="uploads_view_title">העלאות</string>
     <string name="uploads_view_upload_status_cancelled">בוטל</string>
@@ -783,7 +743,6 @@
     <string name="uploads_view_upload_status_failed_localfile_error">קובץ מקומי לא נמצא</string>
     <string name="uploads_view_upload_status_failed_permission_error">שגיאת הרשאה</string>
     <string name="uploads_view_upload_status_failed_ssl_certificate_not_trusted">אישור השרת אינו מהימן</string>
-    <string name="uploads_view_upload_status_fetching_server_version">גרסת השרת מתושאלת…</string>
     <string name="uploads_view_upload_status_service_interrupted">היישומון הופסק</string>
     <string name="uploads_view_upload_status_succeeded">הושלם</string>
     <string name="uploads_view_upload_status_unknown_fail">שגיאה בלתי ידועה</string>
@@ -793,6 +752,7 @@
     <string name="user_icon">משתמש</string>
     <string name="user_info_address">כתובת</string>
     <string name="user_info_email">דוא״ל</string>
+    <string name="user_info_groups">קבוצות</string>
     <string name="user_info_phone">מספר טלפון</string>
     <string name="user_info_twitter">טוויטר</string>
     <string name="user_info_website">אתר</string>
@@ -808,11 +768,11 @@
     <string name="whats_new_skip">דלג</string>
     <string name="whats_new_title">חדש ב־%1$s</string>
     <string name="whats_your_status">מה המצב שלך?</string>
+    <string name="worker_download">קבצים מתקבלים…</string>
     <string name="write_email">שליחת דואר אלקטרוני</string>
     <plurals name="sync_fail_in_favourites_content">
         <item quantity="one">לא ניתן לסנכרן קובץ %1$d (סתירות: %2$d)</item>
         <item quantity="two">לא ניתן לסנכרן %1$d קבצים (סתירות: %2$d)</item>
-        <item quantity="many">לא ניתן לסנכרן %1$d קבצים (סתירות: %2$d)</item>
         <item quantity="other">לא ניתן לסנכרן %1$d קבצים (סתירות: %2$d)</item>
     </plurals>
     <plurals name="sync_foreign_files_forgotten_content">
@@ -836,7 +796,6 @@
     <plurals name="synced_folders_show_hidden_folders">
         <item quantity="one">הצגת תיקייה (%1$d) מוסתרת</item>
         <item quantity="two">הצגת %1$d תיקיות מוסתרות</item>
-        <item quantity="many">הצגת %1$d תיקיות מוסתרות</item>
         <item quantity="other">הצגת %1$d תיקיות מוסתרות</item>
     </plurals>
     <plurals name="items_selected_count">
@@ -845,4 +804,4 @@
         <item quantity="many">נבחרו %d</item>
         <item quantity="other">נבחרו %d</item>
     </plurals>
-</resources>
+    </resources>

@@ -1,46 +1,35 @@
 /*
- * Nextcloud Android client application
+ * Nextcloud - Android Client
  *
- * @author Chris Narkiewicz
- * @author TSI-mc
- * Copyright (C) 2019 Chris Narkiewicz, EZ Aquarii
- * Copyright (C) 2023 TSI-mc
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2023 Jonas Mayer <jonas.a.mayer@gmx.net>
+ * SPDX-FileCopyrightText: 2023 TSI-mc
+ * SPDX-FileCopyrightText: 2022 Álvaro Brey <alvaro@alvarobrey.com>
+ * SPDX-FileCopyrightText: 2021 Tobias Kaminsky <tobias@kaminsky.me>
+ * SPDX-FileCopyrightText: 2019 Chris Narkiewicz <hello@ezaquarii.com>
+ * SPDX-License-Identifier: GPL-3.0-or-later AND AGPL-3.0-or-later
  */
-
 package com.nextcloud.client.preferences;
 
 import com.nextcloud.appReview.AppReviewShownModel;
+import com.nextcloud.client.jobs.LogEntry;
 import com.owncloud.android.datamodel.OCFile;
+import com.owncloud.android.ui.fragment.FolderLayout;
 import com.owncloud.android.utils.FileSortOrder;
+
+import java.util.List;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 /**
  * This interface provides single point of entry for access to all application
- * preferences and allows clients to subscribe for specific configuration
- * changes.
+ * preferences and allows clients to subscribe for specific configuration changes.
  */
 public interface AppPreferences {
 
     /**
      * Preferences listener. Callbacks should be invoked on main thread.
-     *
-     * Maintainers should extend this interface with callbacks for specific
-     * events.
+     * Maintainers should extend this interface with callbacks for specific events.
      */
     interface Listener {
         default void onDarkThemeModeChanged(DarkMode mode) {
@@ -71,9 +60,16 @@ public interface AppPreferences {
 
     boolean instantPictureUploadEnabled();
     boolean instantVideoUploadEnabled();
+    boolean isDarkModeEnabled();
 
     boolean isShowHiddenFilesEnabled();
     void setShowHiddenFilesEnabled(boolean enabled);
+    
+    boolean isSortFoldersBeforeFiles();
+    void setSortFoldersBeforeFiles(boolean enabled);
+    
+    boolean isSortFavoritesFirst();
+    void setSortFavoritesFirst(boolean enabled);
 
     boolean isShowEcosystemApps();
     void setShowEcosystemApps(boolean enabled);
@@ -136,19 +132,19 @@ public interface AppPreferences {
     /**
      * Get preferred folder display type.
      *
-     * @param folder Folder
+     * @param layout FolderLayout
      * @return preference value, default is
      * {@link com.owncloud.android.ui.fragment.OCFileListFragment#FOLDER_LAYOUT_LIST}
      */
-    String getFolderLayout(OCFile folder);
+    String getFolderLayout(FolderLayout layout);
 
     /**
      * Set preferred folder display type.
      *
-     * @param folder Folder which layout is being set or null for root folder
+     * @param layout FolderLayout which layout is being set
      * @param layoutName preference value
      */
-    void setFolderLayout(@Nullable OCFile folder, String layoutName);
+    void setFolderLayout(@NonNull FolderLayout layout, String layoutName);
 
     /**
      * Saves the path where the user selected to do the last upload of a file shared from other app.
@@ -177,14 +173,6 @@ public interface AppPreferences {
      * @return 4 strings with digits or nulls
      */
     String[] getPassCode();
-
-    /**
-     * Gets the unlock via fingerprint preference configured by the user.
-     *
-     * @implNote  this is always false
-     * @return useFingerprint     is unlock with fingerprint enabled
-     */
-    boolean isFingerprintUnlockEnabled();
 
     /**
      * Gets the auto upload paths flag last set.
@@ -221,7 +209,7 @@ public interface AppPreferences {
      * Get preferred folder sort order.
      *
      * @param folder Folder whoch order is being retrieved or null for root folder
-     * @return sort order     the sort order, default is {@link FileSortOrder#sort_a_to_z} (sort by name)
+     * @return sort order     the sort order, default is {@link FileSortOrder# sort_a_to_z} (sort by name)
      */
     FileSortOrder getSortOrderByFolder(@Nullable OCFile folder);
 
@@ -243,7 +231,7 @@ public interface AppPreferences {
     /**
      * Get preferred folder sort order.
      *
-     * @return sort order     the sort order, default is {@link FileSortOrder#sort_a_to_z} (sort by name)
+     * @return sort order     the sort order, default is {@link FileSortOrder# sort_a_to_z} (sort by name)
      */
     FileSortOrder getSortOrderByType(FileSortOrder.Type type, FileSortOrder defaultOrder);
     FileSortOrder getSortOrderByType(FileSortOrder.Type type);
@@ -316,6 +304,10 @@ public interface AppPreferences {
      */
     int getLastSeenVersionCode();
 
+    void saveLogEntry(List<LogEntry> logEntryList);
+
+    List<LogEntry> readLogEntry();
+
     /**
      * Saves the version code as the last seen version code.
      *
@@ -359,10 +351,6 @@ public interface AppPreferences {
 
     long getPhotoSearchTimestamp();
 
-    boolean isPowerCheckDisabled();
-
-    void setPowerCheckDisabled(boolean value);
-
     void increasePinWrongAttempts();
 
     void resetPinWrongAttempts();
@@ -377,9 +365,9 @@ public interface AppPreferences {
 
     void setCalendarLastBackup(long timestamp);
 
-    void setPdfZoomTipShownCount(int count);
+    boolean isGlobalUploadPaused();
 
-    int getPdfZoomTipShownCount();
+    void setGlobalUploadPaused(boolean globalPausedState);
 
     boolean isStoragePermissionRequested();
 
@@ -394,4 +382,22 @@ public interface AppPreferences {
 
     @NonNull
     String getLastSelectedMediaFolder();
+
+    void setTwoWaySyncStatus(boolean value);
+    boolean isTwoWaySyncEnabled();
+
+    void setTwoWaySyncInterval(Long value);
+    Long getTwoWaySyncInterval();
+
+    boolean shouldStopDownloadJobsOnStart();
+    void setStopDownloadJobsOnStart(boolean value);
+
+    int getPassCodeDelay();
+    void setPassCodeDelay(int value);
+
+    String getLastDisplayedAccountName();
+    void setLastDisplayedAccountName(String lastDisplayedAccountName);
+
+    boolean startAutoUploadOnStart();
+    void setLastAutoUploadOnStartTime(long timeInMillisecond);
 }

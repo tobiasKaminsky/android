@@ -1,0 +1,4 @@
+Den selvhostede produktivitetsplatform, der giver dig kontrollen.
+Dette er den officielle udviklingsversion med et dagligt udvalg af nye, utestede funktioner, som kan give ustabilitet og tab af data. Appen er til brugere, der vil teste og rapportere fejl, hvis de opstår. Brug den ikke til dit produktive arbejde!
+
+Både den officielle udviklingsversion og den almindelige version findes på F-Droid og kan installeres samtidig.

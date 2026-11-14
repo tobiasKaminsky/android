@@ -1,28 +1,9 @@
 /*
- *  Nextcloud Android Library is available under MIT license
+ * Nextcloud - Android Client
  *
- *  @author Álvaro Brey Vilas
- *  Copyright (C) 2022 Álvaro Brey Vilas
- *  Copyright (C) 2022 Nextcloud GmbH
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in
- *  all copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- *  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- *  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- *  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- *  BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- *  ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- *  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- *  THE SOFTWARE.
+ * SPDX-FileCopyrightText: 2022 Álvaro Brey <alvaro@alvarobrey.com>
+ * SPDX-FileCopyrightText: 2022 Nextcloud GmbH
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.utils.view
 
@@ -77,17 +58,11 @@ class FastScrollPopupBackground(context: Context, @ColorInt color: Int) : Drawab
         // noop
     }
 
-    override fun isAutoMirrored(): Boolean {
-        return true
-    }
+    override fun isAutoMirrored(): Boolean = true
 
-    override fun getOpacity(): Int {
-        return PixelFormat.TRANSPARENT
-    }
+    override fun getOpacity(): Int = PixelFormat.TRANSPARENT
 
-    private fun shouldMirrorPath(): Boolean {
-        return DrawableCompat.getLayoutDirection(this) == View.LAYOUT_DIRECTION_RTL
-    }
+    private fun shouldMirrorPath(): Boolean = DrawableCompat.getLayoutDirection(this) == View.LAYOUT_DIRECTION_RTL
 
     override fun onLayoutDirectionChanged(layoutDirection: Int): Boolean {
         updatePath()
@@ -146,7 +121,6 @@ class FastScrollPopupBackground(context: Context, @ColorInt color: Int) : Drawab
     }
 
     companion object {
-        @Suppress("LongParameterList")
         private fun pathArcTo(
             path: Path,
             centerX: Float,

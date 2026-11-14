@@ -1,0 +1,68 @@
+/*
+ * Nextcloud - Android Client
+ *
+ * SPDX-FileCopyrightText: 2025 Alper Ozturk <alper.ozturk@nextcloud.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+package com.nextcloud.utils
+
+import android.graphics.drawable.Drawable
+import android.util.LruCache
+import androidx.core.content.ContextCompat
+import com.nextcloud.utils.extensions.getBitmapSize
+import com.nextcloud.utils.extensions.getExifSize
+import com.owncloud.android.MainApp
+import com.owncloud.android.R
+import com.owncloud.android.datamodel.OCFile
+import com.owncloud.android.lib.common.utils.Log_OC
+import com.owncloud.android.utils.MimeTypeUtil
+
+object OCFileUtils {
+    private const val TAG = "OCFileUtils"
+    private const val IMAGE_SIZE_CACHE_ENTRIES = 2048
+
+    private val imageSizes = LruCache<Long, Pair<Int, Int>>(IMAGE_SIZE_CACHE_ENTRIES)
+
+    fun getImageSize(ocFile: OCFile, defaultThumbnailSize: Float): Pair<Int, Int> {
+        val fallback = defaultThumbnailSize.toInt().coerceAtLeast(1)
+        val fallbackPair = fallback to fallback
+
+        imageSizes.get(ocFile.fileId)?.let { return it }
+
+        try {
+            // Server-provided
+            ocFile.imageDimension?.let { dim ->
+                val w = dim.width.toInt().coerceAtLeast(1)
+                val h = dim.height.toInt().coerceAtLeast(1)
+                return (w to h).also { imageSizes.put(ocFile.fileId, it) }
+            }
+
+            // Local file
+            val path = ocFile.storagePath
+            if (!path.isNullOrEmpty() && ocFile.exists()) {
+                path.getExifSize()?.let { return it.also { size -> imageSizes.put(ocFile.fileId, size) } }
+                path.getBitmapSize()?.let { return it.also { size -> imageSizes.put(ocFile.fileId, size) } }
+            }
+
+            return fallbackPair
+        } catch (e: Exception) {
+            Log_OC.e(TAG, "Error getting image size for ${ocFile.fileName}", e)
+        }
+
+        return fallbackPair
+    }
+
+    fun getMediaPlaceholder(file: OCFile): Drawable? {
+        val context = MainApp.getAppContext()
+
+        val drawableId = if (MimeTypeUtil.isImage(file)) {
+            R.drawable.file_image
+        } else if (MimeTypeUtil.isVideo(file)) {
+            R.drawable.file_movie
+        } else {
+            R.drawable.file
+        }
+
+        return ContextCompat.getDrawable(context, drawableId)
+    }
+}

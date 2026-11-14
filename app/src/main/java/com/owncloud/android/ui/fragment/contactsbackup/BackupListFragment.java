@@ -1,25 +1,11 @@
 /*
- * Nextcloud Android client application
+ * Nextcloud - Android Client
  *
- * @author Tobias Kaminsky
- * Copyright (C) 2017 Tobias Kaminsky
- * Copyright (C) 2017 Nextcloud GmbH.
- * Copyright (C) 2020 Chris Narkiewicz <hello@ezaquarii.com>
- * <p>
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * at your option) any later version.
- * <p>
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- * <p>
- * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2020 Chris Narkiewicz <hello@ezaquarii.com>
+ * SPDX-FileCopyrightText: 2017 Tobias Kaminsky <tobias@kaminsky.me>
+ * SPDX-FileCopyrightText: 2017 Nextcloud GmbH
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
-
 package com.owncloud.android.ui.fragment.contactsbackup;
 
 import android.Manifest;
@@ -32,22 +18,25 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Toast;
 
 import com.google.android.material.snackbar.Snackbar;
 import com.nextcloud.client.account.User;
 import com.nextcloud.client.account.UserAccountManager;
 import com.nextcloud.client.di.Injectable;
-import com.nextcloud.client.files.downloader.DownloadRequest;
-import com.nextcloud.client.files.downloader.Request;
-import com.nextcloud.client.files.downloader.Transfer;
-import com.nextcloud.client.files.downloader.TransferManagerConnection;
-import com.nextcloud.client.files.downloader.TransferState;
+import com.nextcloud.client.files.DownloadRequest;
+import com.nextcloud.client.files.Request;
 import com.nextcloud.client.jobs.BackgroundJobManager;
+import com.nextcloud.client.jobs.transfer.Transfer;
+import com.nextcloud.client.jobs.transfer.TransferManagerConnection;
+import com.nextcloud.client.jobs.transfer.TransferState;
 import com.nextcloud.client.network.ClientFactory;
+import com.nextcloud.utils.SnackbarUtil;
+import com.nextcloud.utils.extensions.BundleExtensionsKt;
+import com.nextcloud.utils.extensions.IntExtensionsKt;
 import com.owncloud.android.R;
 import com.owncloud.android.databinding.BackuplistFragmentBinding;
 import com.owncloud.android.datamodel.OCFile;
+import com.owncloud.android.lib.common.utils.Log_OC;
 import com.owncloud.android.ui.activity.ContactsPreferenceActivity;
 import com.owncloud.android.ui.asynctasks.LoadContactsTask;
 import com.owncloud.android.ui.events.VCardToggleEvent;
@@ -56,10 +45,12 @@ import com.owncloud.android.utils.MimeTypeUtil;
 import com.owncloud.android.utils.PermissionUtil;
 import com.owncloud.android.utils.theme.ViewThemeUtils;
 
+import org.apache.commons.io.FileUtils;
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 import org.greenrobot.eventbus.ThreadMode;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -67,6 +58,8 @@ import java.util.List;
 
 import javax.inject.Inject;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.ActionBar;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -194,8 +187,8 @@ public class BackupListFragment extends FileFragment implements Injectable {
             return view;
         }
 
-        if (arguments.getParcelable(FILE_NAME) != null) {
-            ocFiles.add(arguments.getParcelable(FILE_NAME));
+        if (BundleExtensionsKt.getParcelableArgument(arguments, FILE_NAME, OCFile.class) != null) {
+            ocFiles.add(BundleExtensionsKt.getParcelableArgument(arguments, FILE_NAME, OCFile.class));
         } else if (arguments.getParcelableArray(FILE_NAMES) != null) {
             for (Parcelable file : arguments.getParcelableArray(FILE_NAMES)) {
                 ocFiles.add((OCFile) file);
@@ -204,7 +197,7 @@ public class BackupListFragment extends FileFragment implements Injectable {
             return view;
         }
 
-        User user = getArguments().getParcelable(USER);
+        User user = BundleExtensionsKt.getParcelableArgument(getArguments(), USER, User.class);
         fileDownloader = new TransferManagerConnection(getActivity(), user);
         fileDownloader.registerTransferListener(this::onDownloadUpdate);
         fileDownloader.bind();
@@ -270,7 +263,7 @@ public class BackupListFragment extends FileFragment implements Injectable {
 
     @Subscribe(threadMode = ThreadMode.MAIN)
     public void onMessageEvent(VCardToggleEvent event) {
-        if (event.showRestoreButton) {
+        if (event.getShowRestoreButton()) {
             binding.contactlistRestoreSelectedContainer.setVisibility(View.VISIBLE);
         } else {
             binding.contactlistRestoreSelectedContainer.setVisibility(View.GONE);
@@ -349,20 +342,51 @@ public class BackupListFragment extends FileFragment implements Injectable {
     }
 
     private void importContacts(ContactsAccount account) {
-        backgroundJobManager.startImmediateContactsImport(account.getName(),
-                                                          account.getType(),
+        final var selectedContractsFilePath = writeCheckedContractsInCacheDir();
+        if (selectedContractsFilePath == null) {
+            Snackbar.make(binding.list, R.string.contacts_preferences_import_scheduled_fail, Snackbar.LENGTH_LONG).show();
+            return;
+        }
+
+        String name = null;
+        String type = null;
+        if (account != null) {
+            name = account.getName();
+            type = account.getType();
+        }
+
+        backgroundJobManager.startImmediateContactsImport(name,
+                                                          type,
                                                           getFile().getStoragePath(),
-                                                          listAdapter.getCheckedContactsIntArray());
+                                                          selectedContractsFilePath);
 
-        Snackbar
-            .make(
-                binding.list,
-                R.string.contacts_preferences_import_scheduled,
-                Snackbar.LENGTH_LONG
-                 )
-            .show();
-
+        Snackbar.make(binding.list, R.string.contacts_preferences_import_scheduled, Snackbar.LENGTH_LONG).show();
         closeFragment();
+    }
+
+
+    /**
+     * Writes a HashSet of integers to a temporary file in the app's cache directory.
+     * The file stores the data as a comma-separated string. This is necessary because
+     * WorkManager cannot handle large data directly due to its size limit.
+     *
+     * @return the absolute file path of the temporary cache file
+     */
+    private String writeCheckedContractsInCacheDir() {
+        try {
+            final var filename = "selectedContacts-" + System.currentTimeMillis();
+            File file = new File(requireContext().getCacheDir(), filename + ".txt");
+
+            final var contracts = listAdapter.getCheckedContactsIntArray();
+            final var contractsAsByteArray = IntExtensionsKt.toByteArray(contracts);
+
+            FileUtils.writeByteArrayToFile(file, contractsAsByteArray);
+
+            return file.getAbsolutePath();
+        } catch (Exception e) {
+            Log_OC.e(TAG, "Exception writeCheckedContractsInCacheDir: " + e);
+            return null;
+        }
     }
 
     private void importCalendar() {
@@ -382,71 +406,79 @@ public class BackupListFragment extends FileFragment implements Injectable {
     private void closeFragment() {
         ContactsPreferenceActivity contactsPreferenceActivity = (ContactsPreferenceActivity) getActivity();
         if (contactsPreferenceActivity != null) {
-            contactsPreferenceActivity.onBackPressed();
+            contactsPreferenceActivity.getOnBackPressedDispatcher().onBackPressed();
         }
     }
 
+    // region permission check result listener
+    private final ActivityResultLauncher<String> contactsWritePermissionLauncher =
+        registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
+            if (isGranted) {
+                importContacts(selectedAccount);
+            } else {
+                showPermissionErrorMessage();
+            }
+        });
+
+    private final ActivityResultLauncher<String> calendarReadPermissionLauncher =
+        registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
+            if (isGranted) {
+                listAdapter.reloadCalendars();
+            }
+        });
+
+    private final ActivityResultLauncher<String> calendarWritePermissionLauncher =
+        registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
+            if (isGranted) {
+                importCalendar();
+            } else {
+                showPermissionErrorMessage();
+            }
+        });
+    // endregion
+
+    // region permission checks
     private boolean checkAndAskForContactsWritePermission() {
-        // check permissions
-        if (!PermissionUtil.checkSelfPermission(getContext(), Manifest.permission.WRITE_CONTACTS)) {
-            requestPermissions(new String[]{Manifest.permission.WRITE_CONTACTS},
-                               PermissionUtil.PERMISSIONS_WRITE_CONTACTS);
+        final var context = getContext();
+        if (context == null) {
             return false;
-        } else {
-            return true;
+        }
+
+        if (!PermissionUtil.checkSelfPermission(context, Manifest.permission.WRITE_CONTACTS)) {
+            contactsWritePermissionLauncher.launch(Manifest.permission.WRITE_CONTACTS);
+            return false;
+        }
+
+        return true;
+    }
+
+    public void checkAndAskForCalendarReadPermission() {
+        final var context = getContext();
+        if (context == null) {
+            return;
+        }
+
+        if (!PermissionUtil.checkSelfPermission(context, Manifest.permission.READ_CALENDAR)) {
+            calendarReadPermissionLauncher.launch(Manifest.permission.READ_CALENDAR);
         }
     }
 
     private boolean checkAndAskForCalendarWritePermission() {
-        // check permissions
-        if (!PermissionUtil.checkSelfPermission(getContext(), Manifest.permission.WRITE_CALENDAR)) {
-            requestPermissions(new String[]{Manifest.permission.WRITE_CALENDAR},
-                               PermissionUtil.PERMISSIONS_WRITE_CALENDAR);
+        final var context = getContext();
+        if (context == null) {
             return false;
-        } else {
-            return true;
         }
+
+        if (!PermissionUtil.checkSelfPermission(context, Manifest.permission.WRITE_CALENDAR)) {
+            calendarWritePermissionLauncher.launch(Manifest.permission.WRITE_CALENDAR);
+            return false;
+        }
+        return true;
     }
+    // endregion
 
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-
-        if (requestCode == PermissionUtil.PERMISSIONS_WRITE_CONTACTS) {
-            for (int index = 0; index < permissions.length; index++) {
-                if (Manifest.permission.WRITE_CONTACTS.equalsIgnoreCase(permissions[index])) {
-                    if (grantResults[index] >= 0) {
-                        importContacts(selectedAccount);
-                    } else {
-                        if (getView() != null) {
-                            Snackbar.make(getView(), R.string.contactlist_no_permission, Snackbar.LENGTH_LONG)
-                                .show();
-                        } else {
-                            Toast.makeText(getContext(), R.string.contactlist_no_permission, Toast.LENGTH_LONG).show();
-                        }
-                    }
-                    break;
-                }
-            }
-        }
-
-        if (requestCode == PermissionUtil.PERMISSIONS_WRITE_CALENDAR) {
-            for (int index = 0; index < permissions.length; index++) {
-                if (Manifest.permission.WRITE_CALENDAR.equalsIgnoreCase(permissions[index])) {
-                    if (grantResults[index] >= 0) {
-                        importContacts(selectedAccount);
-                    } else {
-                        if (getView() != null) {
-                            Snackbar.make(getView(), R.string.contactlist_no_permission, Snackbar.LENGTH_LONG)
-                                .show();
-                        } else {
-                            Toast.makeText(getContext(), R.string.contactlist_no_permission, Toast.LENGTH_LONG).show();
-                        }
-                    }
-                    break;
-                }
-            }
-        }
+    private void showPermissionErrorMessage() {
+        SnackbarUtil.show(this, R.string.contactlist_no_permission);
     }
 
     private Unit onDownloadUpdate(Transfer download) {

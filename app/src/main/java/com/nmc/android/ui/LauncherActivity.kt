@@ -1,42 +1,42 @@
 /*
- * Nextcloud Android client application
+ * Nextcloud - Android Client
  *
- * @author TSI-mc
- * Copyright (C) 2023 TSI-mc
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2023 Alper Ozturk <alper.ozturk@nextcloud.com>
+ * SPDX-FileCopyrightText: 2023 Andy Scherzinger <info@andy-scherzinger.de>
+ * SPDX-FileCopyrightText: 2023-2024 TSI-mc <surinder.kumar@t-systems.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
-
 package com.nmc.android.ui
 
 import android.content.Intent
 import android.os.Bundle
-import android.os.Handler
-import android.text.TextUtils
 import android.view.View
+import androidx.appcompat.app.AppCompatActivity
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.lifecycleScope
+import com.nextcloud.android.common.ui.util.extensions.applyEdgeToEdgeWithSystemBarPadding
+import com.nextcloud.client.account.UserAccountManager
+import com.nextcloud.client.di.Injectable
 import com.nextcloud.client.preferences.AppPreferences
+import com.nextcloud.utils.mdm.MDMConfig
 import com.owncloud.android.R
 import com.owncloud.android.authentication.AuthenticatorActivity
 import com.owncloud.android.databinding.ActivitySplashBinding
-import com.owncloud.android.ui.activity.BaseActivity
 import com.owncloud.android.ui.activity.FileDisplayActivity
+import com.owncloud.android.ui.activity.SettingsActivity
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.milliseconds
 
-class LauncherActivity : BaseActivity() {
+class LauncherActivity :
+    AppCompatActivity(),
+    Injectable {
 
     private lateinit var binding: ActivitySplashBinding
+
+    @Inject
+    lateinit var accountManager: UserAccountManager
 
     @Inject
     lateinit var appPreferences: AppPreferences
@@ -44,6 +44,7 @@ class LauncherActivity : BaseActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         // Mandatory to call this before super method to show system launch screen for api level 31+
         installSplashScreen()
+        applyEdgeToEdgeWithSystemBarPadding()
 
         super.onCreate(savedInstanceState)
 
@@ -55,30 +56,42 @@ class LauncherActivity : BaseActivity() {
     }
 
     private fun updateTitleVisibility() {
-        if (TextUtils.isEmpty(resources.getString(R.string.splashScreenBold))) {
+        if (resources.getString(R.string.splashScreenBold).isEmpty()) {
             binding.splashScreenBold.visibility = View.GONE
         }
-        if (TextUtils.isEmpty(resources.getString(R.string.splashScreenNormal))) {
+        if (resources.getString(R.string.splashScreenNormal).isEmpty()) {
             binding.splashScreenNormal.visibility = View.GONE
         }
     }
 
+    private fun hasBrandedTitle(): Boolean = resources.getString(R.string.splashScreenBold).isNotEmpty() ||
+        resources.getString(R.string.splashScreenNormal).isNotEmpty()
+
     private fun scheduleSplashScreen() {
-        Handler().postDelayed(
-            {
-                // if user is null then go to authenticator activity
-                if (!user.isPresent) {
-                    startActivity(Intent(this, AuthenticatorActivity::class.java))
-                } else {
-                    startActivity(Intent(this, FileDisplayActivity::class.java))
-                }
-                finish()
-            },
-            SPLASH_DURATION
-        )
+        lifecycleScope.launch {
+            if (hasBrandedTitle()) {
+                delay(SPLASH_DURATION)
+            }
+
+            openNextScreen()
+        }
+    }
+
+    private fun openNextScreen() {
+        val nextScreen = when {
+            accountManager.user.isAnonymous -> AuthenticatorActivity::class.java
+
+            MDMConfig.enforceProtection(this) &&
+                appPreferences.lockPreference == SettingsActivity.LOCK_NONE -> SettingsActivity::class.java
+
+            else -> FileDisplayActivity::class.java
+        }
+
+        startActivity(Intent(this, nextScreen))
+        finish()
     }
 
     companion object {
-        const val SPLASH_DURATION = 1500L
+        private val SPLASH_DURATION = 1500.milliseconds
     }
 }

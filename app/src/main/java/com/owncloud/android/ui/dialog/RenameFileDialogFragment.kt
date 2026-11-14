@@ -1,0 +1,192 @@
+/*
+ * Nextcloud - Android Client
+ *
+ * SPDX-FileCopyrightText: 2023 Alper Ozturk <alper.ozturk@nextcloud.com>
+ * SPDX-FileCopyrightText: 2022 Andy Scherzinger <info@andy-scherzinger.de>
+ * SPDX-FileCopyrightText: 2017-2022 Tobias Kaminsky <tobias@kaminsky.me>
+ * SPDX-FileCopyrightText: 2014 ownCloud Inc.
+ * SPDX-FileCopyrightText: 2014 David A. Velasco <dvelasco@solidgear.es>
+ * SPDX-License-Identifier: GPL-2.0-only AND (AGPL-3.0-or-later OR GPL-2.0-only)
+ */
+package com.owncloud.android.ui.dialog
+
+import android.app.Dialog
+import android.content.DialogInterface
+import android.os.Bundle
+import android.view.View
+import androidx.appcompat.app.AlertDialog
+import androidx.fragment.app.DialogFragment
+import com.google.android.material.button.MaterialButton
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.common.collect.Sets
+import com.nextcloud.client.account.CurrentAccountProvider
+import com.nextcloud.client.di.Injectable
+import com.nextcloud.utils.SnackbarUtil
+import com.nextcloud.utils.extensions.getParcelableArgument
+import com.nextcloud.utils.extensions.typedActivity
+import com.nextcloud.utils.fileNameValidator.FileNameTextWatcher
+import com.nextcloud.utils.fileNameValidator.FileNameValidator.checkFileName
+import com.owncloud.android.R
+import com.owncloud.android.databinding.EditBoxDialogBinding
+import com.owncloud.android.datamodel.FileDataStorageManager
+import com.owncloud.android.datamodel.OCFile
+import com.owncloud.android.lib.resources.status.OCCapability
+import com.owncloud.android.ui.activity.ComponentsGetter
+import com.owncloud.android.ui.activity.FileDisplayActivity
+import com.owncloud.android.ui.dialog.extensions.themeButtons
+import com.owncloud.android.utils.KeyboardUtils
+import com.owncloud.android.utils.theme.ViewThemeUtils
+import javax.inject.Inject
+
+class RenameFileDialogFragment :
+    DialogFragment(),
+    DialogInterface.OnClickListener,
+    Injectable {
+    @Inject
+    lateinit var viewThemeUtils: ViewThemeUtils
+
+    @Inject
+    lateinit var fileDataStorageManager: FileDataStorageManager
+
+    @Inject
+    lateinit var keyboardUtils: KeyboardUtils
+
+    @Inject
+    lateinit var currentAccount: CurrentAccountProvider
+
+    private lateinit var binding: EditBoxDialogBinding
+    private var targetFile: OCFile? = null
+    private var positiveButton: MaterialButton? = null
+    private var fileNames: MutableSet<String>? = null
+
+    override fun onStart() {
+        super.onStart()
+        dialog?.themeButtons(viewThemeUtils)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        keyboardUtils.showKeyboardForEditText(requireDialog().window, binding.userInput)
+    }
+
+    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
+        targetFile = requireArguments().getParcelableArgument(ARG_TARGET_FILE, OCFile::class.java)
+
+        val inflater = requireActivity().layoutInflater
+        binding = EditBoxDialogBinding.inflate(inflater, null, false)
+
+        val currentName = targetFile?.fileName
+        binding.userInput.setText(currentName)
+        viewThemeUtils.material.colorTextInputLayout(binding.userInputContainer)
+        val extensionStart = if (targetFile?.isFolder == true) -1 else currentName?.lastIndexOf('.')
+        val selectionEnd = if ((extensionStart ?: -1) >= 0) extensionStart else currentName?.length
+        if (selectionEnd != null) {
+            binding.userInput.setSelection(0, selectionEnd)
+        }
+
+        val parentFolder = arguments.getParcelableArgument(ARG_PARENT_FOLDER, OCFile::class.java)
+        val folderContent = fileDataStorageManager.getFolderContent(parentFolder, false)
+        fileNames = Sets.newHashSetWithExpectedSize(folderContent.size)
+
+        for (file in folderContent) {
+            fileNames?.add(file.fileName)
+        }
+
+        binding.userInput.addTextChangedListener(
+            FileNameTextWatcher(
+                previousFileName = targetFile?.fileName,
+                context = binding.userInputContainer.context,
+                capabilitiesProvider = { oCCapability },
+                existingFileNamesProvider = { fileNames ?: setOf() },
+                onValidationError = { validationError: String ->
+                    binding.userInputContainer.error = validationError
+                    positiveButton?.isEnabled = false
+                },
+                onValidationWarning = { validationWarning: String ->
+                    binding.userInputContainer.error = validationWarning
+                    positiveButton?.isEnabled = true
+                },
+                onValidationSuccess = {
+                    binding.userInputContainer.error = null
+                    // Called to remove extra padding
+                    binding.userInputContainer.isErrorEnabled = false
+                    positiveButton?.isEnabled = true
+                }
+            )
+        )
+
+        val builder = buildMaterialAlertDialog(binding.root)
+
+        viewThemeUtils.dialog.colorMaterialAlertDialogBackground(binding.userInputContainer.context, builder)
+
+        return builder.create()
+    }
+
+    private fun buildMaterialAlertDialog(view: View): MaterialAlertDialogBuilder {
+        val builder = MaterialAlertDialogBuilder(requireActivity())
+
+        builder
+            .setView(view)
+            .setPositiveButton(R.string.file_rename, this)
+            .setNegativeButton(R.string.common_cancel, this)
+            .setTitle(R.string.rename_dialog_title)
+
+        return builder
+    }
+
+    private val oCCapability: OCCapability
+        get() = fileDataStorageManager.getCapability(currentAccount.user.accountName)
+
+    override fun onClick(dialog: DialogInterface, which: Int) {
+        if (which == AlertDialog.BUTTON_POSITIVE) {
+            var newFileName = ""
+
+            if (binding.userInput.text != null) {
+                newFileName = binding.userInput.text.toString()
+            }
+
+            val errorMessage = checkFileName(newFileName, oCCapability, requireContext())
+            if (errorMessage != null) {
+                SnackbarUtil.show(requireActivity(), errorMessage)
+                return
+            }
+
+            val fda = typedActivity<FileDisplayActivity>()
+
+            if (targetFile?.isOfflineOperation == true) {
+                fileDataStorageManager.renameOfflineOperation(targetFile, newFileName)
+                fda?.refreshCurrentDirectory()
+                return
+            }
+
+            val helper = typedActivity<ComponentsGetter>()?.fileOperationsHelper
+
+            fda?.connectivityService?.isNetworkAndServerAvailable { result ->
+                if (result) {
+                    /*
+                     *  result of it triggered by
+                     *  [com.owncloud.android.ui.activity.FileDisplayActivity.onRemoteOperationFinish]
+                     */
+                    helper?.renameFile(targetFile, newFileName)
+                } else {
+                    fileDataStorageManager.addRenameFileOfflineOperation(targetFile, newFileName)
+                    fda.refreshCurrentDirectory()
+                }
+            }
+        }
+    }
+
+    companion object {
+        private const val ARG_TARGET_FILE = "TARGET_FILE"
+        private const val ARG_PARENT_FOLDER = "PARENT_FOLDER"
+
+        @JvmStatic
+        fun newInstance(file: OCFile?, parentFolder: OCFile?): RenameFileDialogFragment =
+            RenameFileDialogFragment().apply {
+                arguments = Bundle().apply {
+                    putParcelable(ARG_TARGET_FILE, file)
+                    putParcelable(ARG_PARENT_FOLDER, parentFolder)
+                }
+            }
+    }
+}

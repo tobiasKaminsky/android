@@ -1,93 +1,120 @@
 /*
+ * Nextcloud - Android Client
  *
- * Nextcloud Android client application
- *
- * @author Tobias Kaminsky
- * Copyright (C) 2020 Tobias Kaminsky
- * Copyright (C) 2020 Nextcloud GmbH
- * Copyright (C) 2020 Chris Narkiewicz <hello@ezaquarii.com>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2025 Philipp Hasper <vcs@hasper.info>
+ * SPDX-FileCopyrightText: 2025 Alper Ozturk <alper.ozturk@nextcloud.com>
+ * SPDX-FileCopyrightText: 2020 Tobias Kaminsky <tobias@kaminsky.me>
+ * SPDX-FileCopyrightText: 2020 Chris Narkiewicz <hello@ezaquarii.com>
+ * SPDX-FileCopyrightText: 2020 Nextcloud GmbH
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.ui.fragment
 
-import androidx.test.espresso.intent.rule.IntentsTestRule
-import com.nextcloud.test.GrantStoragePermissionRule
+import androidx.test.core.app.launchActivity
+import androidx.test.espresso.Espresso.onView
+import androidx.test.espresso.assertion.ViewAssertions.matches
+import androidx.test.espresso.intent.Intents
+import androidx.test.espresso.intent.Intents.intended
+import androidx.test.espresso.intent.matcher.IntentMatchers.hasComponent
+import androidx.test.espresso.matcher.ViewMatchers.isDescendantOfA
+import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
+import androidx.test.espresso.matcher.ViewMatchers.isEnabled
+import androidx.test.espresso.matcher.ViewMatchers.isRoot
+import androidx.test.espresso.matcher.ViewMatchers.withId
+import androidx.test.espresso.matcher.ViewMatchers.withText
+import com.nextcloud.test.Flaky
 import com.nextcloud.test.TestActivity
 import com.owncloud.android.AbstractIT
+import com.owncloud.android.R
 import com.owncloud.android.datamodel.OCFile
 import com.owncloud.android.lib.resources.shares.ShareType
 import com.owncloud.android.lib.resources.shares.ShareeUser
+import com.owncloud.android.lib.resources.tags.Tag
+import com.owncloud.android.ui.activity.FolderPickerActivity
+import com.owncloud.android.utils.EspressoIdlingResource
 import com.owncloud.android.utils.MimeType
 import com.owncloud.android.utils.ScreenshotTest
+import org.hamcrest.Matchers.allOf
+import org.hamcrest.Matchers.not
+import org.junit.After
 import org.junit.Assert
-import org.junit.Rule
+import org.junit.Before
 import org.junit.Test
 
 class OCFileListFragmentStaticServerIT : AbstractIT() {
-    @get:Rule
-    val testActivityRule = IntentsTestRule(TestActivity::class.java, true, false)
+    private val testClassName = "com.owncloud.android.ui.fragment.OCFileListFragmentStaticServerIT"
 
-    @get:Rule
-    val permissionRule = GrantStoragePermissionRule.grant()
+    @Before
+    fun initIntentRecording() {
+        Intents.init()
+    }
+
+    @After
+    fun releaseIntentRecording() {
+        Intents.release()
+    }
 
     @Test
     @ScreenshotTest
     @Suppress("MagicNumber")
     fun showFiles() {
-        val sut = testActivityRule.launchActivity(null)
+        launchActivity<TestActivity>().use { scenario ->
+            var sut: TestActivity? = null
+            scenario.onActivity { testActivity ->
+                sut = testActivity
+                OCFile("/1.png").apply {
+                    remoteId = "00000001"
+                    mimeType = "image/png"
+                    fileLength = 1024000
+                    modificationTimestamp = 1188206955000
+                    parentId = sut.storageManager.getFileByEncryptedRemotePath("/").fileId
+                    sut.storageManager.saveFile(this)
+                }
 
-        OCFile("/1.png").apply {
-            mimeType = "image/png"
-            fileLength = 1024000
-            modificationTimestamp = 1188206955000
-            parentId = sut.storageManager.getFileByEncryptedRemotePath("/").fileId
-            sut.storageManager.saveFile(this)
+                OCFile("/image.png").apply {
+                    remoteId = "00000002"
+                    mimeType = "image/png"
+                    isPreviewAvailable = false
+                    fileLength = 3072000
+                    modificationTimestamp = 746443755000
+                    parentId = sut.storageManager.getFileByEncryptedRemotePath("/").fileId
+                    tags = listOf(Tag("", "Top secret", null))
+                    sut.storageManager.saveFile(this)
+                }
+
+                OCFile("/live photo.png").apply {
+                    remoteId = "00000003"
+                    mimeType = "image/png"
+                    isPreviewAvailable = false
+                    fileLength = 3072000
+                    modificationTimestamp = 746443755000
+                    parentId = sut.storageManager.getFileByEncryptedRemotePath("/").fileId
+                    setLivePhoto("/video.mov")
+                    sut.storageManager.saveFile(this)
+                }
+
+                OCFile("/video.mp4").apply {
+                    remoteId = "00000004"
+                    mimeType = "video/mp4"
+                    isPreviewAvailable = false
+                    fileLength = 12092000
+                    modificationTimestamp = 746143952000
+                    parentId = sut.storageManager.getFileByEncryptedRemotePath("/").fileId
+                    tags = listOf(Tag("", "Confidential", null), Tag("", "+5", null))
+                    sut.storageManager.saveFile(this)
+                }
+
+                sut.addFragment(OCFileListFragment())
+                sut.supportFragmentManager.executePendingTransactions()
+                val fragment = (sut.fragment as OCFileListFragment)
+                val root = sut.storageManager.getFileByEncryptedRemotePath("/")
+                fragment.listDirectory(root, false)
+            }
+
+            val screenShotName = createName(testClassName + "_" + "showFiles", "")
+            onView(isRoot()).check(matches(isDisplayed()))
+            screenshotViaName(sut, screenShotName)
         }
-
-        OCFile("/image.png").apply {
-            mimeType = "image/png"
-            isPreviewAvailable = false
-            fileLength = 3072000
-            modificationTimestamp = 746443755000
-            parentId = sut.storageManager.getFileByEncryptedRemotePath("/").fileId
-            tags = listOf("Top secret")
-            sut.storageManager.saveFile(this)
-        }
-
-        OCFile("/video.mp4").apply {
-            mimeType = "video/mp4"
-            isPreviewAvailable = false
-            fileLength = 12092000
-            modificationTimestamp = 746143952000
-            parentId = sut.storageManager.getFileByEncryptedRemotePath("/").fileId
-            tags = listOf("Confidential", "+5")
-            sut.storageManager.saveFile(this)
-        }
-
-        sut.addFragment(OCFileListFragment())
-
-        val fragment = (sut.fragment as OCFileListFragment)
-        val root = sut.storageManager.getFileByEncryptedRemotePath("/")
-
-        shortSleep()
-
-        sut.runOnUiThread { fragment.listDirectory(root, false, false) }
-
-        waitForIdleSync()
-
-        screenshot(sut)
     }
 
     /**
@@ -96,134 +123,130 @@ class OCFileListFragmentStaticServerIT : AbstractIT() {
     @Test
     @ScreenshotTest
     fun showSharedFiles() {
-        val sut = testActivityRule.launchActivity(null)
-        val fragment = OCFileListFragment()
+        launchActivity<TestActivity>().use { scenario ->
+            var sut: TestActivity? = null
+            scenario.onActivity { testActivity ->
+                sut = testActivity
+                val fragment = OCFileListFragment()
 
-        OCFile("/sharedToUser.jpg").apply {
-            parentId = sut.storageManager.getFileByEncryptedRemotePath("/").fileId
-            isSharedWithSharee = true
-            sharees = listOf(ShareeUser("Admin", "Server Admin", ShareType.USER))
-            modificationTimestamp = 1000
-            sut.storageManager.saveFile(this)
+                OCFile("/sharedToUser.jpg").apply {
+                    remoteId = "00000001"
+                    parentId = sut.storageManager.getFileByEncryptedRemotePath("/").fileId
+                    isSharedWithSharee = true
+                    sharees = listOf(ShareeUser("Admin", "Server Admin", ShareType.USER))
+                    modificationTimestamp = 1000
+                    sut.storageManager.saveFile(this)
+                }
+
+                OCFile("/sharedToGroup.jpg").apply {
+                    remoteId = "00000002"
+                    parentId = sut.storageManager.getFileByEncryptedRemotePath("/").fileId
+                    isSharedWithSharee = true
+                    sharees = listOf(ShareeUser("group", "Group", ShareType.GROUP))
+                    modificationTimestamp = 1000
+                    sut.storageManager.saveFile(this)
+                }
+
+                OCFile("/sharedToEmail.jpg").apply {
+                    remoteId = "00000003"
+                    parentId = sut.storageManager.getFileByEncryptedRemotePath("/").fileId
+                    isSharedWithSharee = true
+                    sharees =
+                        listOf(
+                            ShareeUser("admin@nextcloud.localhost", "admin@nextcloud.localhost", ShareType.EMAIL)
+                        )
+                    modificationTimestamp = 1000
+                    sut.storageManager.saveFile(this)
+                }
+
+                OCFile("/publicLink.jpg").apply {
+                    remoteId = "00000004"
+                    parentId = sut.storageManager.getFileByEncryptedRemotePath("/").fileId
+                    isSharedViaLink = true
+                    modificationTimestamp = 1000
+                    sut.storageManager.saveFile(this)
+                }
+
+                OCFile("/sharedToFederatedUser.jpg").apply {
+                    remoteId = "00000005"
+                    parentId = sut.storageManager.getFileByEncryptedRemotePath("/").fileId
+                    isSharedWithSharee = true
+                    sharees = listOf(
+                        ShareeUser(
+                            "admin@remote.nextcloud.com",
+                            "admin@remote.nextcloud.com (remote)",
+                            ShareType.FEDERATED
+                        )
+                    )
+                    modificationTimestamp = 1000
+                    sut.storageManager.saveFile(this)
+                }
+
+                OCFile("/sharedToPersonalCircle.jpg").apply {
+                    remoteId = "00000006"
+                    parentId = sut.storageManager.getFileByEncryptedRemotePath("/").fileId
+                    isSharedWithSharee = true
+                    sharees = listOf(ShareeUser("circle", "Circle (Personal circle)", ShareType.CIRCLE))
+                    modificationTimestamp = 1000
+                    sut.storageManager.saveFile(this)
+                }
+
+                OCFile("/sharedToUserRoom.jpg").apply {
+                    remoteId = "00000007"
+                    parentId = sut.storageManager.getFileByEncryptedRemotePath("/").fileId
+                    isSharedWithSharee = true
+                    sharees = listOf(ShareeUser("Conversation", "Admin", ShareType.ROOM))
+                    modificationTimestamp = 1000
+                    sut.storageManager.saveFile(this)
+                }
+
+                OCFile("/sharedToGroupRoom.jpg").apply {
+                    remoteId = "00000008"
+                    parentId = sut.storageManager.getFileByEncryptedRemotePath("/").fileId
+                    isSharedWithSharee = true
+                    sharees = listOf(ShareeUser("Conversation", "Meeting", ShareType.ROOM))
+                    modificationTimestamp = 1000
+                    sut.storageManager.saveFile(this)
+                }
+
+                OCFile("/sharedToUsers.jpg").apply {
+                    remoteId = "00000009"
+                    parentId = sut.storageManager.getFileByEncryptedRemotePath("/").fileId
+                    isSharedWithSharee = true
+                    sharees = listOf(
+                        ShareeUser("Admin", "Server Admin", ShareType.USER),
+                        ShareeUser("User", "User", ShareType.USER),
+                        ShareeUser("Christine", "Christine Scott", ShareType.USER)
+                    )
+                    modificationTimestamp = 1000
+                    sut.storageManager.saveFile(this)
+                }
+
+                OCFile("/notShared.jpg").apply {
+                    remoteId = "000000010"
+                    parentId = sut.storageManager.getFileByEncryptedRemotePath("/").fileId
+                    modificationTimestamp = 1000
+                    sut.storageManager.saveFile(this)
+                }
+
+                OCFile("/Foo%e2%80%aedm.exe").apply {
+                    remoteId = "000000011"
+                    parentId = sut.storageManager.getFileByEncryptedRemotePath("/").fileId
+                    modificationTimestamp = 1000
+                    sut.storageManager.saveFile(this)
+                }
+
+                sut.addFragment(fragment)
+                sut.supportFragmentManager.executePendingTransactions()
+                val root = sut.storageManager.getFileByEncryptedRemotePath("/")
+                fragment.listDirectory(root, false)
+                requireNotNull(fragment.adapter).setShowShareAvatar(true)
+            }
+
+            val screenShotName = createName(testClassName + "_" + "showSharedFiles", "")
+            onView(isRoot()).check(matches(isDisplayed()))
+            screenshotViaName(sut, screenShotName)
         }
-
-        OCFile("/sharedToGroup.jpg").apply {
-            parentId = sut.storageManager.getFileByEncryptedRemotePath("/").fileId
-            isSharedWithSharee = true
-            sharees = listOf(ShareeUser("group", "Group", ShareType.GROUP))
-            modificationTimestamp = 1000
-            sut.storageManager.saveFile(this)
-        }
-
-        OCFile("/sharedToEmail.jpg").apply {
-            parentId = sut.storageManager.getFileByEncryptedRemotePath("/").fileId
-            isSharedWithSharee = true
-            sharees = listOf(ShareeUser("admin@nextcloud.localhost", "admin@nextcloud.localhost", ShareType.EMAIL))
-            modificationTimestamp = 1000
-            sut.storageManager.saveFile(this)
-        }
-
-        OCFile("/publicLink.jpg").apply {
-            parentId = sut.storageManager.getFileByEncryptedRemotePath("/").fileId
-            isSharedViaLink = true
-            modificationTimestamp = 1000
-            sut.storageManager.saveFile(this)
-        }
-
-        OCFile("/sharedToFederatedUser.jpg").apply {
-            parentId = sut.storageManager.getFileByEncryptedRemotePath("/").fileId
-            isSharedWithSharee = true
-            sharees = listOf(
-                ShareeUser("admin@remote.nextcloud.com", "admin@remote.nextcloud.com (remote)", ShareType.FEDERATED)
-            )
-            modificationTimestamp = 1000
-            sut.storageManager.saveFile(this)
-        }
-
-        OCFile("/sharedToPersonalCircle.jpg").apply {
-            parentId = sut.storageManager.getFileByEncryptedRemotePath("/").fileId
-            isSharedWithSharee = true
-            sharees = listOf(ShareeUser("circle", "Circle (Personal circle)", ShareType.CIRCLE))
-            modificationTimestamp = 1000
-            sut.storageManager.saveFile(this)
-        }
-
-        // as we cannot distinguish circle types, we do not need them right now
-//        OCFile("/sharedToPublicCircle.jpg").apply {
-//            parentId = sut.storageManager.getFileByEncryptedRemotePath("/").fileId
-//            isSharedWithSharee = true
-//            sharees = listOf(ShareeUser("circle", "Circle (Public circle)", ShareType.CIRCLE))
-//            modificationTimestamp = 1000
-//            sut.storageManager.saveFile(this)
-//        }
-//
-//        OCFile("/sharedToClosedCircle.jpg").apply {
-//            parentId = sut.storageManager.getFileByEncryptedRemotePath("/").fileId
-//            isSharedWithSharee = true
-//            sharees = listOf(ShareeUser("circle", "Circle (Closed circle)", ShareType.CIRCLE))
-//            modificationTimestamp = 1000
-//            sut.storageManager.saveFile(this)
-//        }
-//
-//        OCFile("/sharedToSecretCircle.jpg").apply {
-//            parentId = sut.storageManager.getFileByEncryptedRemotePath("/").fileId
-//            isSharedWithSharee = true
-//            sharees = listOf(ShareeUser("circle", "Circle (Secret circle)", ShareType.CIRCLE))
-//            modificationTimestamp = 1000
-//            sut.storageManager.saveFile(this)
-//        }
-
-        OCFile("/sharedToUserRoom.jpg").apply {
-            parentId = sut.storageManager.getFileByEncryptedRemotePath("/").fileId
-            isSharedWithSharee = true
-            sharees = listOf(ShareeUser("Conversation", "Admin", ShareType.ROOM))
-            modificationTimestamp = 1000
-            sut.storageManager.saveFile(this)
-        }
-
-        OCFile("/sharedToGroupRoom.jpg").apply {
-            parentId = sut.storageManager.getFileByEncryptedRemotePath("/").fileId
-            isSharedWithSharee = true
-            sharees = listOf(ShareeUser("Conversation", "Meeting", ShareType.ROOM))
-            modificationTimestamp = 1000
-            sut.storageManager.saveFile(this)
-        }
-
-        OCFile("/sharedToUsers.jpg").apply {
-            parentId = sut.storageManager.getFileByEncryptedRemotePath("/").fileId
-            isSharedWithSharee = true
-            sharees = listOf(
-                ShareeUser("Admin", "Server Admin", ShareType.USER),
-                ShareeUser("User", "User", ShareType.USER),
-                ShareeUser("Christine", "Christine Scott", ShareType.USER)
-            )
-            modificationTimestamp = 1000
-            sut.storageManager.saveFile(this)
-        }
-
-        OCFile("/notShared.jpg").apply {
-            parentId = sut.storageManager.getFileByEncryptedRemotePath("/").fileId
-            modificationTimestamp = 1000
-            sut.storageManager.saveFile(this)
-        }
-
-        sut.addFragment(fragment)
-
-        shortSleep()
-
-        val root = sut.storageManager.getFileByEncryptedRemotePath("/")
-
-        sut.runOnUiThread {
-            fragment.listDirectory(root, false, false)
-            fragment.adapter.setShowShareAvatar(true)
-        }
-
-        waitForIdleSync()
-        shortSleep()
-        shortSleep()
-        shortSleep()
-
-        screenshot(sut)
     }
 
     /**
@@ -232,112 +255,211 @@ class OCFileListFragmentStaticServerIT : AbstractIT() {
     @Test
     @ScreenshotTest
     fun showFolderTypes() {
-        val sut = testActivityRule.launchActivity(null)
-        val fragment = OCFileListFragment()
+        launchActivity<TestActivity>().use { scenario ->
+            var sut: TestActivity? = null
+            scenario.onActivity { testActivity ->
+                sut = testActivity
+                val fragment = OCFileListFragment()
 
-        OCFile("/normal/").apply {
-            mimeType = MimeType.DIRECTORY
-            modificationTimestamp = 1624003571000
-            parentId = sut.storageManager.getFileByEncryptedRemotePath("/").fileId
-            sut.storageManager.saveFile(this)
+                OCFile("/normal/").apply {
+                    remoteId = "00000001"
+                    mimeType = MimeType.DIRECTORY
+                    modificationTimestamp = 1624003571000
+                    parentId = sut.storageManager.getFileByEncryptedRemotePath("/").fileId
+                    sut.storageManager.saveFile(this)
+                }
+
+                OCFile("/sharedViaLink/").apply {
+                    remoteId = "00000002"
+                    mimeType = MimeType.DIRECTORY
+                    isSharedViaLink = true
+                    modificationTimestamp = 1619003571000
+                    parentId = sut.storageManager.getFileByEncryptedRemotePath("/").fileId
+                    sut.storageManager.saveFile(this)
+                }
+
+                OCFile("/share/").apply {
+                    remoteId = "00000003"
+                    mimeType = MimeType.DIRECTORY
+                    isSharedWithSharee = true
+                    modificationTimestamp = 1619303571000
+                    parentId = sut.storageManager.getFileByEncryptedRemotePath("/").fileId
+                    sut.storageManager.saveFile(this)
+                }
+
+                OCFile("/groupFolder/").apply {
+                    remoteId = "00000004"
+                    mimeType = MimeType.DIRECTORY
+                    modificationTimestamp = 1615003571000
+                    parentId = sut.storageManager.getFileByEncryptedRemotePath("/").fileId
+                    permissions += "M"
+                    sut.storageManager.saveFile(this)
+                }
+
+                OCFile("/encrypted/").apply {
+                    remoteId = "00000005"
+                    mimeType = MimeType.DIRECTORY
+                    isEncrypted = true
+                    decryptedRemotePath = "/encrypted/"
+                    modificationTimestamp = 1614003571000
+                    parentId = sut.storageManager.getFileByEncryptedRemotePath("/").fileId
+                    sut.storageManager.saveFile(this)
+                }
+
+                OCFile("/locked/").apply {
+                    remoteId = "00000006"
+                    mimeType = MimeType.DIRECTORY
+                    isLocked = true
+                    decryptedRemotePath = "/locked/"
+                    modificationTimestamp = 1613003571000
+                    parentId = sut.storageManager.getFileByEncryptedRemotePath("/").fileId
+                    sut.storageManager.saveFile(this)
+                }
+
+                OCFile("/offlineOperation/").apply {
+                    mimeType = MimeType.DIRECTORY
+                    decryptedRemotePath = "/offlineOperation/"
+                    modificationTimestamp = System.currentTimeMillis()
+                    parentId = sut.storageManager.getFileByEncryptedRemotePath("/").fileId
+                    sut.storageManager.saveFile(this)
+                }
+
+                sut.addFragment(fragment)
+                sut.supportFragmentManager.executePendingTransactions()
+                val root = sut.storageManager.getFileByEncryptedRemotePath("/")
+                fragment.listDirectory(root, false)
+                requireNotNull(fragment.adapter).setShowShareAvatar(true)
+            }
+
+            val screenShotName = createName(testClassName + "_" + "showFolderTypes", "")
+            onView(isRoot()).check(matches(isDisplayed()))
+            screenshotViaName(sut, screenShotName)
         }
-
-        OCFile("/groupFolder/").apply {
-            mimeType = MimeType.DIRECTORY
-            modificationTimestamp = 1615003571000
-            parentId = sut.storageManager.getFileByEncryptedRemotePath("/").fileId
-            permissions += "M"
-            sut.storageManager.saveFile(this)
-        }
-
-        OCFile("/encrypted/").apply {
-            mimeType = MimeType.DIRECTORY
-            isEncrypted = true
-            decryptedRemotePath = "/encrypted/"
-            modificationTimestamp = 1614003571000
-            parentId = sut.storageManager.getFileByEncryptedRemotePath("/").fileId
-            sut.storageManager.saveFile(this)
-        }
-
-        sut.addFragment(fragment)
-
-        shortSleep()
-
-        val root = sut.storageManager.getFileByEncryptedRemotePath("/")
-
-        sut.runOnUiThread {
-            fragment.listDirectory(root, false, false)
-            fragment.adapter.setShowShareAvatar(true)
-        }
-
-        waitForIdleSync()
-        shortSleep()
-        shortSleep()
-        shortSleep()
-
-        screenshot(sut)
     }
 
     @Test
     @ScreenshotTest
     @Suppress("MagicNumber")
     fun showRichWorkspace() {
-        val sut = testActivityRule.launchActivity(null)
-        val fragment = OCFileListFragment()
+        launchActivity<TestActivity>().use { scenario ->
+            var sut: TestActivity? = null
+            scenario.onActivity { testActivity ->
+                sut = testActivity
+                val fragment = OCFileListFragment()
 
-        val folder = OCFile("/test/")
-        folder.setFolder()
-        sut.storageManager.saveFile(folder)
+                val folder = OCFile("/test/")
+                folder.setFolder()
+                sut.storageManager.saveFile(folder)
 
-        val imageFile = OCFile("/test/image.png")
-        imageFile.mimeType = "image/png"
-        imageFile.fileLength = 1024000
-        imageFile.modificationTimestamp = 1188206955000
-        imageFile.parentId = sut.storageManager.getFileByEncryptedRemotePath("/test/").fileId
-        imageFile.storagePath = getFile("java.md").absolutePath
-        sut.storageManager.saveFile(imageFile)
+                val imageFile = OCFile("/test/image.png").apply {
+                    remoteId = "00000001"
+                    mimeType = "image/png"
+                    fileLength = 1024000
+                    modificationTimestamp = 1188206955000
+                    parentId = sut.storageManager.getFileByEncryptedRemotePath("/test/").fileId
+                    storagePath = getFile("java.md").absolutePath
+                }
 
-        sut.addFragment(fragment)
-        val testFolder: OCFile = sut.storageManager.getFileByEncryptedRemotePath("/test/")
-        testFolder.richWorkspace = getFile("java.md").readText()
+                sut.storageManager.saveFile(imageFile)
 
-        sut.runOnUiThread { fragment.listDirectory(testFolder, false, false) }
+                sut.addFragment(fragment)
+                sut.supportFragmentManager.executePendingTransactions()
+                val testFolder: OCFile = sut.storageManager.getFileByEncryptedRemotePath("/test/")
+                testFolder.richWorkspace = getFile("java.md").readText()
+                fragment.listDirectory(testFolder, false)
+            }
 
-        shortSleep()
-
-        screenshot(sut)
+            val screenShotName = createName(testClassName + "_" + "showRichWorkspace", "")
+            onView(isRoot()).check(matches(isDisplayed()))
+            screenshotViaName(sut, screenShotName)
+        }
     }
 
     @Test
     fun shouldShowHeader() {
-        val activity = testActivityRule.launchActivity(null)
-        val sut = OCFileListFragment()
+        launchActivity<TestActivity>().use { scenario ->
+            var activity: TestActivity? = null
+            val sut = OCFileListFragment()
 
-        val folder = OCFile("/test/")
-        folder.setFolder()
-        activity.storageManager.saveFile(folder)
+            scenario.onActivity { testActivity ->
+                activity = testActivity
+                val folder = OCFile("/test/").apply {
+                    remoteId = "000001"
+                    setFolder()
+                }
+                activity.storageManager.saveFile(folder)
+                activity.addFragment(sut)
+                activity.supportFragmentManager.executePendingTransactions()
+            }
 
-        activity.addFragment(sut)
-        val testFolder: OCFile = activity.storageManager.getFileByEncryptedRemotePath("/test/")
+            val testFolder: OCFile = activity!!.storageManager.getFileByEncryptedRemotePath("/test/")
+            val adapter = requireNotNull(sut.adapter)
 
-        activity.runOnUiThread {
             // richWorkspace is not set
-            Assert.assertFalse(sut.adapter.shouldShowHeader())
+            Assert.assertFalse(adapter.shouldShowHeader())
 
             testFolder.richWorkspace = " "
             activity.storageManager.saveFile(testFolder)
-            sut.adapter.swapDirectory(user, testFolder, activity.storageManager, false, "")
-            Assert.assertFalse(sut.adapter.shouldShowHeader())
+            adapter.swapDirectory(user, testFolder, activity.storageManager, false, "")
+
+            Assert.assertFalse(adapter.shouldShowHeader())
 
             testFolder.richWorkspace = null
             activity.storageManager.saveFile(testFolder)
-            sut.adapter.swapDirectory(user, testFolder, activity.storageManager, false, "")
-            Assert.assertFalse(sut.adapter.shouldShowHeader())
+            adapter.swapDirectory(user, testFolder, activity.storageManager, false, "")
+            Assert.assertFalse(adapter.shouldShowHeader())
 
+            EspressoIdlingResource.increment()
             testFolder.richWorkspace = "1"
             activity.storageManager.saveFile(testFolder)
-            sut.adapter.setCurrentDirectory(testFolder)
-            Assert.assertTrue(sut.adapter.shouldShowHeader())
+            adapter.setCurrentDirectory(testFolder)
+
+            Assert.assertTrue(adapter.shouldShowHeader())
+        }
+    }
+
+    @Test
+    @Flaky(reason = "Folder picker activity is occasionally not started before the intent assertions run")
+    fun shouldStartMoveInParentFolder() {
+        launchActivity<TestActivity>().use { scenario ->
+            val fragment = OCFileListFragment()
+            var testFolder: OCFile? = null
+
+            scenario.onActivity { activity ->
+                testFolder = OCFile("/folder/").apply {
+                    setFolder()
+                }
+                activity.storageManager.saveNewFile(testFolder)
+
+                val testFile = OCFile("${testFolder.remotePath}myImage.png").apply {
+                    parentId = testFolder.fileId
+                    activity.storageManager.saveNewFile(this)
+                }
+
+                activity.addFragment(fragment)
+                activity.supportFragmentManager.executePendingTransactions()
+
+                fragment.listDirectory(testFolder, false)
+                fragment.onFileActionChosen(R.id.action_move_or_copy, setOf(testFile))
+            }
+            // Check that the FolderPickerActivity was opened
+            intended(hasComponent(FolderPickerActivity::class.java.canonicalName))
+
+            // Check that the Action Bar shows the current folder name as title
+            onView(
+                allOf(
+                    isDescendantOfA(withId(R.id.toolbar)),
+                    withText(testFolder!!.fileName)
+                )
+            ).check(matches(isDisplayed()))
+
+            // Test the button's enabled status. "Move" should not be enabled, but the rest should.
+            onView(allOf(withId(R.id.folder_picker_btn_cancel), isDisplayed()))
+                .check(matches(isEnabled()))
+            onView(allOf(withId(R.id.folder_picker_btn_copy), isDisplayed()))
+                .check(matches(isEnabled()))
+            onView(allOf(withId(R.id.folder_picker_btn_move), isDisplayed()))
+                .check(matches(not(isEnabled())))
         }
     }
 }

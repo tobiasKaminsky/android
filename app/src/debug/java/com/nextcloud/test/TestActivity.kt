@@ -1,40 +1,25 @@
 /*
- * Nextcloud Android client application
+ * Nextcloud - Android Client
  *
- * @author Tobias Kaminsky
- * Copyright (C) 2020 Tobias Kaminsky
- * Copyright (C) 2020 Nextcloud GmbH
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2020 Tobias Kaminsky <tobias@kaminsky.me>
+ * SPDX-FileCopyrightText: 2020 Nextcloud GmbH
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
-
 package com.nextcloud.test
 
 import android.os.Bundle
 import android.view.View
 import androidx.fragment.app.Fragment
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-import com.nextcloud.client.network.Connectivity
-import com.nextcloud.client.network.ConnectivityService
+import com.nextcloud.client.database.NextcloudDatabase
+import com.nextcloud.client.jobs.upload.FileUploadHelper
+import com.nextcloud.client.network.ConnectivityManagerFactory
 import com.nextcloud.utils.EditorUtils
 import com.owncloud.android.R
 import com.owncloud.android.databinding.TestLayoutBinding
 import com.owncloud.android.datamodel.ArbitraryDataProviderImpl
 import com.owncloud.android.datamodel.FileDataStorageManager
 import com.owncloud.android.datamodel.OCFile
-import com.owncloud.android.files.services.FileDownloader
-import com.owncloud.android.files.services.FileUploader
 import com.owncloud.android.lib.resources.status.OCCapability
 import com.owncloud.android.lib.resources.status.OwnCloudVersion
 import com.owncloud.android.services.OperationsService
@@ -55,15 +40,7 @@ class TestActivity :
     private lateinit var fileOperation: FileOperationsHelper
     private lateinit var binding: TestLayoutBinding
 
-    val connectivityServiceMock: ConnectivityService = object : ConnectivityService {
-        override fun isInternetWalled(): Boolean {
-            return false
-        }
-
-        override fun getConnectivity(): Connectivity {
-            return Connectivity.CONNECTED_WIFI
-        }
-    }
+    val connectivityServiceMock = ConnectivityManagerFactory.mock
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -106,9 +83,7 @@ class TestActivity :
         TODO("Not yet implemented")
     }
 
-    override fun getOperationsServiceBinder(): OperationsService.OperationsServiceBinder? {
-        return null
-    }
+    override fun getOperationsServiceBinder(): OperationsService.OperationsServiceBinder? = null
 
     override fun showSortListGroup(show: Boolean) {
         // not needed
@@ -122,13 +97,7 @@ class TestActivity :
         TODO("Not yet implemented")
     }
 
-    override fun getFileUploaderBinder(): FileUploader.FileUploaderBinder? {
-        return null
-    }
-
-    override fun getFileDownloaderBinder(): FileDownloader.FileDownloaderBinder? {
-        return null
-    }
+    override fun getFileUploaderHelper(): FileUploadHelper = FileUploadHelper.instance()
 
     override fun getStorageManager(): FileDataStorageManager {
         if (!this::storage.isInitialized) {
@@ -151,7 +120,9 @@ class TestActivity :
                 userAccountManager,
                 connectivityServiceMock,
                 EditorUtils(
-                    ArbitraryDataProviderImpl(baseContext)
+                    ArbitraryDataProviderImpl(
+                        NextcloudDatabase.getInstance(baseContext).arbitraryDataDao()
+                    )
                 )
             )
         }

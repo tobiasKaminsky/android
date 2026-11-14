@@ -1,89 +1,74 @@
 /*
+ * Nextcloud - Android Client
  *
- * Nextcloud Android client application
- *
- * @author Tobias Kaminsky
- * Copyright (C) 2023 Tobias Kaminsky
- * Copyright (C) 2023 Nextcloud GmbH
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2025 Alper Ozturk <alper.ozturk@nextcloud.com>
+ * SPDX-FileCopyrightText: 2023 Tobias Kaminsky <tobias@kaminsky.me>
+ * SPDX-FileCopyrightText: 2023 Nextcloud GmbH
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
-
 package com.owncloud.android.ui.fragment
 
-import androidx.test.espresso.intent.rule.IntentsTestRule
+import androidx.test.core.app.launchActivity
+import androidx.test.espresso.Espresso.onView
+import androidx.test.espresso.assertion.ViewAssertions.matches
+import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
+import androidx.test.espresso.matcher.ViewMatchers.isRoot
 import com.nextcloud.android.lib.resources.groupfolders.Groupfolder
 import com.nextcloud.test.TestActivity
 import com.owncloud.android.AbstractIT
 import com.owncloud.android.utils.ScreenshotTest
-import org.junit.Before
-import org.junit.Rule
 import org.junit.Test
 
 class GroupfolderListFragmentIT : AbstractIT() {
-    @get:Rule
-    val testActivityRule = IntentsTestRule(TestActivity::class.java, true, false)
-
-    lateinit var activity: TestActivity
-
-    @Before
-    fun before() {
-        activity = testActivityRule.launchActivity(null)
-    }
+    private val testClassName = "com.owncloud.android.ui.fragment.GroupfolderListFragmentIT"
 
     @Test
     @ScreenshotTest
     fun showGroupfolder() {
-        val sut = GroupfolderListFragment()
-        activity.addFragment(sut)
+        launchActivity<TestActivity>().use { scenario ->
+            var activity: TestActivity? = null
+            scenario.onActivity { testActivity ->
+                activity = testActivity
+                val sut = GroupfolderListFragment()
+                activity.addFragment(sut)
+                activity.supportFragmentManager.executePendingTransactions()
 
-        shortSleep() // to let async task finish
-
-        activity.runOnUiThread {
-            sut.setAdapter(null)
-            sut.setData(
-                mapOf(
-                    Pair("2", Groupfolder(2, "/subfolder/group"))
+                sut.setAdapter(null)
+                sut.setData(
+                    mapOf(
+                        Pair("2", Groupfolder(2, "/subfolder/group"))
+                    )
                 )
-            )
-        }
+            }
 
-        waitForIdleSync()
-        shortSleep()
-        screenshot(activity)
+            val screenShotName = createName(testClassName + "_" + "showGroupfolder", "")
+            onView(isRoot()).check(matches(isDisplayed()))
+            screenshotViaName(activity, screenShotName)
+        }
     }
 
     @Test
     @ScreenshotTest
     fun showGroupfolders() {
-        val sut = GroupfolderListFragment()
-        activity.addFragment(sut)
-
-        shortSleep() // to let async task finish
-
-        activity.runOnUiThread {
-            sut.setAdapter(null)
-            sut.setData(
-                mapOf(
-                    Pair("1", Groupfolder(1, "/test/")),
-                    Pair("2", Groupfolder(2, "/subfolder/group"))
+        launchActivity<TestActivity>().use { scenario ->
+            var activity: TestActivity? = null
+            scenario.onActivity { testActivity ->
+                activity = testActivity
+                val sut = GroupfolderListFragment()
+                activity.addFragment(sut)
+                activity.supportFragmentManager.executePendingTransactions()
+                sut.setAdapter(null)
+                sut.setData(
+                    mapOf(
+                        Pair("1", Groupfolder(1, "/test/")),
+                        Pair("2", Groupfolder(2, "/subfolder/group"))
+                    )
                 )
-            )
-        }
+            }
 
-        waitForIdleSync()
-        shortSleep()
-        screenshot(activity)
+            val screenShotName = createName(testClassName + "_" + "showGroupfolders", "")
+            onView(isRoot()).check(matches(isDisplayed()))
+            screenshotViaName(activity, screenShotName)
+        }
     }
 }

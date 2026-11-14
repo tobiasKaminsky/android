@@ -1,57 +1,46 @@
 /*
- * Nextcloud Android client application
+ * Nextcloud - Android Client
  *
- * @author Álvaro Brey Vilas
- * Copyright (C) 2022 Álvaro Brey Vilas
- * Copyright (C) 2022 Nextcloud GmbH
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2025 Alper Ozturk <alper.ozturk@nextcloud.com>
+ * SPDX-FileCopyrightText: 2022 Álvaro Brey <alvaro@alvarobrey.com>
+ * SPDX-FileCopyrightText: 2022 Nextcloud GmbH
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
-
 package com.owncloud.android.ui.preview
 
 import android.content.Intent
-import androidx.test.espresso.intent.rule.IntentsTestRule
+import androidx.test.core.app.launchActivity
+import androidx.test.espresso.Espresso.onView
+import androidx.test.espresso.assertion.ViewAssertions.matches
+import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
+import androidx.test.espresso.matcher.ViewMatchers.isRoot
 import com.owncloud.android.AbstractIT
+import com.owncloud.android.ui.preview.pdf.PreviewBitmapActivity
 import com.owncloud.android.utils.ScreenshotTest
-import org.junit.Rule
 import org.junit.Test
 
 class PreviewBitmapScreenshotIT : AbstractIT() {
+    private val testClassName = "com.owncloud.android.ui.preview.PreviewBitmapScreenshotIT"
 
     companion object {
         private const val PNG_FILE_ASSET = "imageFile.png"
     }
 
-    @get:Rule
-    val testActivityRule = IntentsTestRule(PreviewBitmapActivity::class.java, true, false)
-
     @Test
     @ScreenshotTest
     fun showBitmap() {
         val pngFile = getFile(PNG_FILE_ASSET)
-
-        val activity = testActivityRule.launchActivity(
-            Intent().putExtra(
-                PreviewBitmapActivity.EXTRA_BITMAP_PATH,
-                pngFile.absolutePath
-            )
+        val intent = Intent(targetContext, PreviewBitmapActivity::class.java).putExtra(
+            PreviewBitmapActivity.EXTRA_BITMAP_PATH,
+            pngFile.absolutePath
         )
 
-        shortSleep()
-        waitForIdleSync()
-
-        screenshot(activity)
+        launchActivity<PreviewBitmapActivity>(intent).use { scenario ->
+            val screenShotName = createName(testClassName + "_" + "showBitmap", "")
+            onView(isRoot()).check(matches(isDisplayed()))
+            scenario.onActivity { sut ->
+                screenshotViaName(sut, screenShotName)
+            }
+        }
     }
 }

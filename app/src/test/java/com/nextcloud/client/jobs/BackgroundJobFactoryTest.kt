@@ -1,21 +1,8 @@
 /*
- * Nextcloud Android client application
+ * Nextcloud - Android Client
  *
- * @author Chris Narkiewicz
- * Copyright (C) 2020 Chris Narkiewicz <hello@ezaquarii.com>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2020 Chris Narkiewicz <hello@ezaquarii.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.jobs
 
@@ -28,6 +15,9 @@ import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import androidx.work.WorkerParameters
 import com.nextcloud.client.account.UserAccountManager
 import com.nextcloud.client.core.Clock
+import com.nextcloud.client.database.NextcloudDatabase
+import com.nextcloud.client.database.dao.FileDao
+import com.nextcloud.client.database.dao.FileSystemDao
 import com.nextcloud.client.device.DeviceInfo
 import com.nextcloud.client.device.PowerManagementService
 import com.nextcloud.client.documentscan.GeneratePDFUseCase
@@ -35,10 +25,16 @@ import com.nextcloud.client.integrations.deck.DeckApi
 import com.nextcloud.client.logger.Logger
 import com.nextcloud.client.network.ConnectivityService
 import com.nextcloud.client.preferences.AppPreferences
+import com.nextcloud.repository.ClientRepository
+import com.owncloud.android.MainApp
 import com.owncloud.android.datamodel.ArbitraryDataProvider
 import com.owncloud.android.datamodel.SyncedFolderProvider
 import com.owncloud.android.datamodel.UploadsStorageManager
+import com.owncloud.android.operations.factory.UploadFileOperationFactory
 import com.owncloud.android.utils.theme.ViewThemeUtils
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.mockkObject
 import org.greenrobot.eventbus.EventBus
 import org.junit.Assert.assertNotNull
 import org.junit.Before
@@ -49,8 +45,7 @@ import org.mockito.kotlin.whenever
 
 class BackgroundJobFactoryTest {
 
-    @Mock
-    private lateinit var context: Context
+    private val context = mockk<Context>(relaxed = true)
 
     @Mock
     private lateinit var params: WorkerParameters
@@ -112,11 +107,29 @@ class BackgroundJobFactoryTest {
     @Mock
     private lateinit var syncedFolderProvider: SyncedFolderProvider
 
+    @Mock
+    private lateinit var db: NextcloudDatabase
+
+    @Mock private lateinit var fileSystemDao: FileSystemDao
+
+    @Mock private lateinit var fileDao: FileDao
+
+    @Mock private lateinit var uploadFileOperationFactory: UploadFileOperationFactory
+
+    @Mock private lateinit var clientRepository: ClientRepository
+
     private lateinit var factory: BackgroundJobFactory
 
     @Before
     fun setUp() {
-        MockitoAnnotations.initMocks(this)
+        mockkObject(MainApp)
+        every { MainApp.getAppContext() } returns context
+
+        MockitoAnnotations.openMocks(this)
+
+        whenever(db.fileDao()).thenReturn(fileDao)
+        whenever(db.fileSystemDao()).thenReturn(fileSystemDao)
+
         factory = BackgroundJobFactory(
             logger,
             preferences,
@@ -124,7 +137,6 @@ class BackgroundJobFactoryTest {
             clock,
             powerManagementService,
             { backgroundJobManager },
-            deviceInfo,
             accountManager,
             resources,
             dataProvider,
@@ -136,16 +148,18 @@ class BackgroundJobFactoryTest {
             { viewThemeUtils },
             { localBroadcastManager },
             generatePDFUseCase,
-            syncedFolderProvider
+            syncedFolderProvider,
+            db,
+            uploadFileOperationFactory,
+            clientRepository
         )
     }
 
     @Test
-    fun content_observer_worker_is_created_on_api_level_24() {
+    fun content_observer_worker_is_created() {
         // GIVEN
-        //      api level is > 24
         //      content URI trigger is supported
-        whenever(deviceInfo.apiLevel).thenReturn(Build.VERSION_CODES.N)
+        whenever(deviceInfo.apiLevel).thenReturn(Build.VERSION_CODES.P)
 
         // WHEN
         //      factory is called to create content observer worker

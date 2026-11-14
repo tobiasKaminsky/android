@@ -1,21 +1,8 @@
 /*
- * Nextcloud Android client application
+ * Nextcloud - Android Client
  *
- * @author Chris Narkiewicz
- * Copyright (C) 2020 Chris Narkiewicz <hello@ezaquarii.com>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2020 Chris Narkiewicz <hello@ezaquarii.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.ui.unifiedsearch
 
@@ -24,8 +11,10 @@ import android.content.Context
 import android.content.res.Resources
 import android.net.Uri
 import androidx.annotation.VisibleForTesting
+import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.viewModelScope
 import com.nextcloud.client.account.CurrentAccountProvider
 import com.nextcloud.client.core.AsyncRunner
 import com.nextcloud.client.network.ClientFactory
@@ -37,32 +26,24 @@ import com.owncloud.android.lib.common.SearchResult
 import com.owncloud.android.lib.common.SearchResultEntry
 import com.owncloud.android.lib.common.utils.Log_OC
 import com.owncloud.android.ui.asynctasks.GetRemoteFileTask
+import com.owncloud.android.ui.fragment.UnifiedSearchFragmentScreenState
 import javax.inject.Inject
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
-@Suppress("LongParameterList")
-class UnifiedSearchViewModel(application: Application) : AndroidViewModel(application), IUnifiedSearchViewModel {
+class UnifiedSearchViewModel(application: Application) :
+    AndroidViewModel(application),
+    IUnifiedSearchViewModel {
     companion object {
         private const val TAG = "UnifiedSearchViewModel"
-        private const val DEFAULT_LIMIT = 5
         private const val FILES_PROVIDER_ID = "files"
     }
 
-    private data class UnifiedSearchMetadata(
-        var results: MutableList<SearchResult> = mutableListOf()
-    ) {
-        fun nextCursor(): Int? = results.lastOrNull()?.cursor?.toInt()
+    private data class UnifiedSearchMetadata(var results: MutableList<SearchResult> = mutableListOf()) {
+        fun nextCursor(): Int? = results.lastOrNull()?.cursor?.toIntOrNull()
         fun name(): String? = results.lastOrNull()?.name
-        fun isFinished(): Boolean {
-            if (results.isEmpty()) {
-                return false
-            }
-            val lastResult = results.last()
-            return when {
-                !lastResult.isPaginated -> true
-                lastResult.entries.size < DEFAULT_LIMIT -> true
-                else -> false
-            }
-        }
     }
 
     private lateinit var currentAccountProvider: CurrentAccountProvider
@@ -75,9 +56,15 @@ class UnifiedSearchViewModel(application: Application) : AndroidViewModel(applic
         get() = getApplication<Application>().applicationContext
 
     private lateinit var repository: IUnifiedSearchRepository
-    private var loadingStarted: Boolean = false
     private var results: MutableMap<ProviderID, UnifiedSearchMetadata> = mutableMapOf()
+    private var searchResultsVersion = 0
 
+    private val sectionBuildErrorHandler = CoroutineExceptionHandler { _, throwable ->
+        Log_OC.e(TAG, "Cannot build search result sections", throwable)
+    }
+
+    override val screenState: MutableLiveData<UnifiedSearchFragmentScreenState> =
+        MutableLiveData(UnifiedSearchFragmentScreenState.ShowingContent)
     override val isLoading = MutableLiveData(false)
     override val searchResults = MutableLiveData<List<UnifiedSearchSection>>(mutableListOf())
     override val error = MutableLiveData("")
@@ -101,18 +88,11 @@ class UnifiedSearchViewModel(application: Application) : AndroidViewModel(applic
         this.connectivityService = connectivityService
 
         repository = UnifiedSearchRemoteRepository(
+            viewModelScope,
             clientFactory,
             currentAccountProvider,
             runner
         )
-    }
-
-    open fun startLoading(query: String) {
-        if (!loadingStarted) {
-            loadingStarted = true
-            this.query.value = query
-            initialQuery()
-        }
     }
 
     /**
@@ -121,6 +101,7 @@ class UnifiedSearchViewModel(application: Application) : AndroidViewModel(applic
     override fun initialQuery() {
         doWithConnectivityCheck {
             results = mutableMapOf()
+            searchResultsVersion++
             searchResults.value = mutableListOf()
             val queryTerm = query.value.orEmpty()
 
@@ -159,6 +140,7 @@ class UnifiedSearchViewModel(application: Application) : AndroidViewModel(applic
                     isLoading.value = false
                 }
             }
+
             else -> block()
         }
     }
@@ -172,34 +154,35 @@ class UnifiedSearchViewModel(application: Application) : AndroidViewModel(applic
     }
 
     private fun getResultUri(result: SearchResultEntry): Uri {
-        val uri = Uri.parse(result.resourceUrl)
+        val uri = result.resourceUrl.toUri()
         return when (uri.host) {
             null -> {
                 val serverUrl = currentAccountProvider.user.server.uri.toString()
                 val fullUrl = serverUrl + result.resourceUrl
-                Uri.parse(fullUrl)
+                fullUrl.toUri()
             }
+
             else -> uri
         }
     }
 
-    fun openFile(fileUrl: String) {
+    override fun openFile(remotePath: String) {
         if (isLoading.value == false) {
             isLoading.value = true
-            val user = currentAccountProvider.user
-            val task = GetRemoteFileTask(
-                context,
-                fileUrl,
-                clientFactory.create(currentAccountProvider.user),
-                FileDataStorageManager(user, context.contentResolver),
-                user
-            )
-            runner.postQuickTask(task, onResult = this::onFileRequestResult)
+            getRemoteFile(remotePath)
         }
     }
 
-    open fun clearError() {
-        error.value = ""
+    override fun getRemoteFile(remotePath: String) {
+        val user = currentAccountProvider.user
+        val task = GetRemoteFileTask(
+            context,
+            remotePath,
+            clientFactory.create(user),
+            FileDataStorageManager(user, context.contentResolver),
+            user
+        )
+        runner.postQuickTask(task, onResult = this::onFileRequestResult)
     }
 
     fun onError(error: Throwable) {
@@ -223,14 +206,35 @@ class UnifiedSearchViewModel(application: Application) : AndroidViewModel(applic
     }
 
     private fun genSearchResultsFromMeta() {
-        searchResults.value = results
+        val snapshot = results
             .filter { it.value.results.isNotEmpty() }
-            .map { (key, value) ->
+            .mapValues { (_, metadata) -> metadata.copy(results = metadata.results.toMutableList()) }
+
+        val version = ++searchResultsVersion
+
+        viewModelScope.launch(Dispatchers.IO + sectionBuildErrorHandler) {
+            val sections = buildSections(snapshot)
+
+            withContext(Dispatchers.Main) {
+                if (version == searchResultsVersion) {
+                    searchResults.value = sections
+                }
+            }
+        }
+    }
+
+    private fun buildSections(snapshot: Map<ProviderID, UnifiedSearchMetadata>): List<UnifiedSearchSection> {
+        val storageManager = FileDataStorageManager(currentAccountProvider.user, context.contentResolver)
+
+        return snapshot
+            .map { (providerID, metadata) ->
                 UnifiedSearchSection(
-                    providerID = key,
-                    name = value.name()!!,
-                    entries = value.results.flatMap { it.entries },
-                    hasMoreResults = !value.isFinished()
+                    providerID = providerID,
+                    name = metadata.name()!!,
+                    entries = metadata.results
+                        .flatMap { it.entries }
+                        .map { it.toUnifiedSearchEntry(storageManager) },
+                    hasMoreResults = metadata.results.last().entries.isNotEmpty() && metadata.nextCursor() != null
                 )
             }
             .sortedWith { o1, o2 ->
@@ -272,5 +276,14 @@ class UnifiedSearchViewModel(application: Application) : AndroidViewModel(applic
     @VisibleForTesting
     fun setConnectivityService(connectivityService: ConnectivityService) {
         this.connectivityService = connectivityService
+    }
+
+    @VisibleForTesting
+    fun setCurrentAccountProvider(currentAccountProvider: CurrentAccountProvider) {
+        this.currentAccountProvider = currentAccountProvider
+    }
+
+    override fun updateScreenState(state: UnifiedSearchFragmentScreenState) {
+        screenState.value = state
     }
 }

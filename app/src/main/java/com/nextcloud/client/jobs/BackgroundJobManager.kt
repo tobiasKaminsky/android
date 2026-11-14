@@ -1,39 +1,33 @@
 /*
- * Nextcloud Android client application
+ * Nextcloud - Android Client
  *
- * @author Chris Narkiewicz
- * Copyright (C) 2020 Chris Narkiewicz <hello@ezaquarii.com>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2020 Chris Narkiewicz <hello@ezaquarii.com>
+ * SPDX-FileCopyrightText: 2026 TSI-mc <surinder.kumar@t-systems.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.jobs
 
 import androidx.lifecycle.LiveData
+import androidx.work.ListenableWorker
 import com.nextcloud.client.account.User
 import com.owncloud.android.datamodel.OCFile
+import com.owncloud.android.datamodel.SyncedFolder
+import com.owncloud.android.operations.DownloadType
 
 /**
  * This interface allows to control, schedule and monitor all application
  * long-running background tasks, such as periodic checks or synchronization.
  */
-@Suppress("TooManyFunctions") // we expect this implementation to have rich API
 interface BackgroundJobManager {
 
     /**
      * Information about all application background jobs.
      */
     val jobs: LiveData<List<JobInfo>>
+
+    fun logStartOfWorker(workerName: String?)
+
+    fun logEndOfWorker(workerName: String?, result: ListenableWorker.Result)
 
     /**
      * Start content observer job that monitors changes in media folders
@@ -102,7 +96,7 @@ interface BackgroundJobManager {
      * @param contactsAccountName Target contacts account name; null for local contacts
      * @param contactsAccountType Target contacts account type; null for local contacts
      * @param vCardFilePath Path to file containing all contact entries
-     * @param selectedContacts List of contact indices to import from [vCardFilePath] file
+     * @param selectedContactsFilePath File path of list of contact indices to import from [vCardFilePath] file
      *
      * @return Job info with current status; status is null if job does not exist
      */
@@ -110,7 +104,7 @@ interface BackgroundJobManager {
         contactsAccountName: String?,
         contactsAccountType: String?,
         vCardFilePath: String,
-        selectedContacts: IntArray
+        selectedContactsFilePath: String
     ): LiveData<JobInfo?>
 
     /**
@@ -126,8 +120,14 @@ interface BackgroundJobManager {
 
     fun startImmediateFilesExportJob(files: Collection<OCFile>): LiveData<JobInfo?>
 
-    fun schedulePeriodicFilesSyncJob()
-    fun startImmediateFilesSyncJob(skipCustomFolders: Boolean = false, overridePowerSaving: Boolean = false)
+    /**
+     * @param overridePowerSaving uploads even while the device is in power saving mode. Such a run replaces an
+     * already scheduled run of the same folder, because that one would otherwise stop on the power saving check.
+     */
+    fun startAutoUpload(syncedFolder: SyncedFolder, overridePowerSaving: Boolean = false)
+
+    fun cancelTwoWaySyncJob()
+
     fun scheduleOfflineSync()
 
     fun scheduleMediaFoldersDetectionJob()
@@ -135,8 +135,31 @@ interface BackgroundJobManager {
 
     fun startNotificationJob(subject: String, signature: String)
     fun startAccountRemovalJob(accountName: String, remoteWipe: Boolean)
-    fun startFilesUploadJob(user: User)
+    fun startFilesUploadJob(
+        user: User,
+        uploadIds: LongArray,
+        showSameFileAlreadyExistsNotification: Boolean,
+        skipAutoUploadCheck: Boolean = false
+    )
+    fun startAlbumFilesUploadJob(user: User, uploadIds: LongArray, albumName: String)
     fun getFileUploads(user: User): LiveData<List<JobInfo>>
+    fun cancelFilesUploadJob(user: User)
+    fun isAutoUploadScheduled(syncedFolderID: Long): Boolean
+    fun isStartFileUploadJobScheduled(accountName: String): Boolean
+    fun isAutoUploadIgnoringPowerSavingScheduled(syncedFolderID: Long): Boolean
+    fun schedulePeriodicAutoUpload()
+    fun cancelEnqueuedAutoUploads()
+    fun cancelFilesDownloadJob(accountName: String, fileId: Long)
+
+    fun startFileDownloadJob(
+        user: User,
+        file: OCFile,
+        behaviour: String,
+        downloadType: DownloadType?,
+        activityName: String,
+        packageName: String,
+        conflictUploadId: Long?
+    )
 
     fun startPdfGenerateAndUploadWork(user: User, uploadFolder: String, imagePaths: List<String>, pdfPath: String)
 
@@ -146,4 +169,15 @@ interface BackgroundJobManager {
 
     fun pruneJobs()
     fun cancelAllJobs()
+    fun schedulePeriodicHealthStatus()
+    fun startHealthStatus()
+    fun startOfflineOperations()
+    fun startPeriodicallyOfflineOperation()
+    fun scheduleInternal2WaySync(intervalMinutes: Long)
+    fun runNowInternal2WaySync()
+    fun cancelAllFilesDownloadJobs()
+    fun startMetadataSyncJob(currentDirPath: String, folderAlreadySynced: Boolean = false)
+    fun downloadFolder(folder: OCFile, accountName: String)
+    fun cancelFolderDownload()
+    fun locallyDeleteAutoUploadedFiles(syncedFolders: List<SyncedFolder>)
 }

@@ -1,25 +1,10 @@
 /*
- * Nextcloud Android client application
+ * Nextcloud - Android Client
  *
- *  @author Álvaro Brey
- *  Copyright (C) 2022 Álvaro Brey
- *  Copyright (C) 2022 Nextcloud GmbH
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE
- * License as published by the Free Software Foundation; either
- * version 3 of the License, or any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU AFFERO GENERAL PUBLIC LICENSE for more details.
- *
- * You should have received a copy of the GNU Affero General Public
- * License along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * SPDX-FileCopyrightText: 2022 Álvaro Brey <alvaro@alvarobrey.com>
+ * SPDX-FileCopyrightText: 2022 Nextcloud GmbH
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
-
 package com.nextcloud.ui.fileactions
 
 import android.os.Bundle
@@ -30,7 +15,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nextcloud.client.account.CurrentAccountProvider
 import com.nextcloud.client.logger.Logger
-import com.nextcloud.utils.TimeConstants
+import com.nextcloud.utils.AppConstants
 import com.owncloud.android.datamodel.OCFile
 import com.owncloud.android.files.FileMenuFilter
 import com.owncloud.android.lib.resources.files.model.FileLockType
@@ -43,8 +28,7 @@ class FileActionsViewModel @Inject constructor(
     private val currentAccountProvider: CurrentAccountProvider,
     private val filterFactory: FileMenuFilter.Factory,
     private val logger: Logger
-) :
-    ViewModel() {
+) : ViewModel() {
 
     data class LockInfo(val lockType: FileLockType, val lockedBy: String, val lockedUntil: Long?)
 
@@ -57,7 +41,8 @@ class FileActionsViewModel @Inject constructor(
             val lockInfo: LockInfo? = null
         ) : UiState
 
-        data class LoadedForMultipleFiles(val actions: List<FileAction>, val fileCount: Int) : UiState
+        data class LoadedForMultipleFiles(val firstFile: OCFile, val actions: List<FileAction>, val fileCount: Int) :
+            UiState
     }
 
     private val _uiState: MutableLiveData<UiState> = MutableLiveData(UiState.Loading)
@@ -69,10 +54,7 @@ class FileActionsViewModel @Inject constructor(
         @IdRes
         get() = _clickActionId
 
-    fun load(
-        arguments: Bundle,
-        componentsGetter: ComponentsGetter
-    ) {
+    fun load(arguments: Bundle, componentsGetter: ComponentsGetter) {
         val files: List<OCFile>? = arguments.getParcelableArrayList(ARG_FILES)
         val numberOfAllFiles: Int = arguments.getInt(ARG_ALL_FILES_COUNT, 1)
         val isOverflow = arguments.getBoolean(ARG_IS_OVERFLOW, false)
@@ -97,7 +79,7 @@ class FileActionsViewModel @Inject constructor(
     ) {
         viewModelScope.launch(Dispatchers.IO) {
             val toHide = getHiddenActions(componentsGetter, numberOfAllFiles, files, isOverflow, inSingleFileFragment)
-            val availableActions = getActionsToShow(additionalFilter, toHide)
+            val availableActions = getActionsToShow(additionalFilter, toHide, files)
             updateStateLoaded(files, availableActions)
         }
     }
@@ -108,34 +90,31 @@ class FileActionsViewModel @Inject constructor(
         files: Collection<OCFile>,
         isOverflow: Boolean?,
         inSingleFileFragment: Boolean
-    ): List<Int> {
-        return filterFactory.newInstance(
-            numberOfAllFiles ?: 1,
-            files.toList(),
-            componentsGetter,
-            isOverflow ?: false,
-            currentAccountProvider.user
-        )
-            .getToHide(inSingleFileFragment)
-    }
+    ): List<Int> = filterFactory.newInstance(
+        numberOfAllFiles ?: 1,
+        files.toList(),
+        componentsGetter,
+        isOverflow ?: false,
+        currentAccountProvider.user
+    )
+        .getToHide(inSingleFileFragment)
 
-    private fun getActionsToShow(
-        additionalFilter: IntArray?,
-        toHide: List<Int>
-    ) = FileAction.SORTED_VALUES
-        .filter { additionalFilter == null || it.id !in additionalFilter }
-        .filter { it.id !in toHide }
+    private fun getActionsToShow(additionalFilter: IntArray?, toHide: List<Int>, files: Collection<OCFile>) =
+        FileAction.getActions(files)
+            .filter { additionalFilter == null || it.id !in additionalFilter }
+            .filter { it.id !in toHide }
 
-    private fun updateStateLoaded(
-        files: Collection<OCFile>,
-        availableActions: List<FileAction>
-    ) {
+    private fun updateStateLoaded(files: Collection<OCFile>, availableActions: List<FileAction>) {
         val state: UiState = when (files.size) {
             1 -> {
                 val file = files.first()
                 UiState.LoadedForSingleFile(availableActions, file, getLockInfo(file))
             }
-            else -> UiState.LoadedForMultipleFiles(availableActions, files.size)
+
+            else -> {
+                val file = files.first()
+                UiState.LoadedForMultipleFiles(file, availableActions, files.size)
+            }
         }
         _uiState.postValue(state)
     }
@@ -150,12 +129,10 @@ class FileActionsViewModel @Inject constructor(
         }
     }
 
-    private fun getLockedUntil(file: OCFile): Long? {
-        return if (file.lockTimestamp == 0L || file.lockTimeout == 0L) {
-            null
-        } else {
-            (file.lockTimestamp + file.lockTimeout) * TimeConstants.MILLIS_PER_SECOND
-        }
+    private fun getLockedUntil(file: OCFile): Long? = if (file.lockTimestamp == 0L || file.lockTimeout == 0L) {
+        null
+    } else {
+        (file.lockTimestamp + file.lockTimeout) * AppConstants.MILLIS_PER_SECOND
     }
 
     fun onClick(action: FileAction) {
@@ -168,6 +145,7 @@ class FileActionsViewModel @Inject constructor(
         const val ARG_IS_OVERFLOW = "OVERFLOW"
         const val ARG_ADDITIONAL_FILTER = "ADDITIONAL_FILTER"
         const val ARG_IN_SINGLE_FILE_FRAGMENT = "IN_SINGLE_FILE_FRAGMENT"
+        const val ARG_ENDPOINTS = "ENDPOINTS"
 
         private val TAG = FileActionsViewModel::class.simpleName!!
     }

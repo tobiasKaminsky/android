@@ -1,23 +1,11 @@
 /*
- * Nextcloud Android client application
+ * Nextcloud - Android Client
  *
- * @author Tobias Kaminsky
- * Copyright (C) 2017 Tobias Kaminsky
- * Copyright (C) 2017 Nextcloud GmbH.
- * Copyright (C) 2020 Chris Narkiewicz <hello@ezaquarii.com>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2025 Alper Ozturk <alper.ozturk@nextcloud.com>
+ * SPDX-FileCopyrightText: 2020 Chris Narkiewicz <hello@ezaquarii.com>
+ * SPDX-FileCopyrightText: 2017 Tobias Kaminsky
+ * SPDX-FileCopyrightText: 2017 Nextcloud GmbH
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.jobs
 
@@ -26,10 +14,11 @@ import android.content.Context
 import androidx.work.Worker
 import androidx.work.WorkerParameters
 import com.nextcloud.client.logger.Logger
+import com.owncloud.android.lib.common.utils.Log_OC
 import net.fortuna.ical4j.data.CalendarBuilder
-import third_parties.sufficientlysecure.AndroidCalendar
-import third_parties.sufficientlysecure.CalendarSource
-import third_parties.sufficientlysecure.ProcessVEvent
+import thirdparties.sufficientlysecure.AndroidCalendar
+import thirdparties.sufficientlysecure.CalendarSource
+import thirdparties.sufficientlysecure.ProcessVEvent
 import java.io.File
 
 class CalendarImportWork(
@@ -41,37 +30,55 @@ class CalendarImportWork(
 
     companion object {
         const val TAG = "CalendarImportWork"
-        const val SELECTED_CALENDARS = "selected_contacts_indices"
     }
 
     override fun doWork(): Result {
-        val calendarPaths = inputData.getStringArray(SELECTED_CALENDARS) ?: arrayOf<String>()
-        val calendars = inputData.keyValueMap as Map<String, AndroidCalendar>
+        val calendars = inputData.keyValueMap as? Map<*, *>
+        if (calendars == null) {
+            logger.d(TAG, "CalendarImportWork cancelled due to null empty input data")
+            return Result.failure()
+        }
 
         val calendarBuilder = CalendarBuilder()
 
-        for ((path, selectedCalendar) in calendars) {
-            logger.d(TAG, "Import calendar from $path")
+        for ((path, selectedCalendarIndex) in calendars) {
+            try {
+                if (path !is String || selectedCalendarIndex !is Int) {
+                    logger.d(TAG, "Skipping wrong input data types: $path - $selectedCalendarIndex")
+                    continue
+                }
 
-            val file = File(path)
-            val calendarSource = CalendarSource(
-                file.toURI().toURL().toString(),
-                null,
-                null,
-                null,
-                appContext
-            )
+                logger.d(TAG, "Import calendar from $path")
 
-            val calendars = AndroidCalendar.loadAll(contentResolver)[0]
+                val file = File(path)
+                val calendarSource = CalendarSource(
+                    file.toURI().toURL().toString(),
+                    null,
+                    null,
+                    null,
+                    appContext
+                )
 
-            ProcessVEvent(
-                appContext,
-                calendarBuilder.build(calendarSource.stream),
-                selectedCalendar,
-                true
-            ).run()
+                val calendarList = AndroidCalendar.loadAll(contentResolver)
+                if (selectedCalendarIndex >= calendarList.size) {
+                    logger.d(TAG, "Skipping selectedCalendarIndex out of bound")
+                    continue
+                }
+
+                val selectedCalendar = calendarList[selectedCalendarIndex]
+
+                ProcessVEvent(
+                    appContext,
+                    calendarBuilder.build(calendarSource.stream),
+                    selectedCalendar,
+                    true
+                ).run()
+            } catch (e: Exception) {
+                Log_OC.e(TAG, "skipping calendarIndex: $selectedCalendarIndex due to: $e")
+            }
         }
 
+        logger.d(TAG, "CalendarImportWork successfully completed")
         return Result.success()
     }
 }

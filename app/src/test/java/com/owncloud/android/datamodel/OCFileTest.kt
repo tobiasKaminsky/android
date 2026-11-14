@@ -1,31 +1,41 @@
 /*
+ * Nextcloud - Android Client
  *
- * Nextcloud Android client application
- *
- * @author Tobias Kaminsky
- * Copyright (C) 2022 Tobias Kaminsky
- * Copyright (C) 2022 Nextcloud GmbH
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2026 Alper Ozturk <alper.ozturk@nextcloud.com>
+ * SPDX-FileCopyrightText: 2022 Tobias Kaminsky <tobias@kaminsky.me>
+ * SPDX-FileCopyrightText: 2022 Nextcloud GmbH
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.datamodel
 
+import com.owncloud.android.lib.resources.shares.ShareType
+import com.owncloud.android.lib.resources.shares.ShareeUser
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class OCFileTest {
+    @Test
+    fun testShareesDefaultsToEmptyMutableList() {
+        val sut = OCFile("/")
+
+        assertTrue(sut.sharees.isEmpty())
+
+        sut.sharees.add(ShareeUser("alice", "Alice", ShareType.USER))
+        assertEquals(1, sut.sharees.size)
+    }
+
+    @Test
+    fun testShareesStayMutableWhenSetFromImmutableList() {
+        val sut = OCFile("/")
+
+        sut.sharees = listOf(ShareeUser("alice", "Alice", ShareType.USER))
+
+        sut.sharees.add(ShareeUser("bob", "Bob", ShareType.USER))
+        assertEquals(2, sut.sharees.size)
+    }
+
     @Test
     fun testLongIds() {
         val sut = OCFile("/")

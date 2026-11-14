@@ -1,0 +1,122 @@
+/*
+ * Nextcloud - Android Client
+ *
+ * SPDX-FileCopyrightText: 2024 Alper Ozturk <alper.ozturk@nextcloud.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+
+package com.nextcloud.client.jobs.folderDownload
+
+import android.app.Notification
+import android.app.PendingIntent
+import android.content.Context
+import android.content.Intent
+import androidx.work.ForegroundInfo
+import com.nextcloud.client.jobs.notification.WorkerNotificationManager
+import com.nextcloud.utils.extensions.mainThread
+import com.owncloud.android.R
+import com.owncloud.android.datamodel.OCFile
+import com.owncloud.android.ui.notifications.NotificationUtils
+import com.owncloud.android.utils.theme.ViewThemeUtils
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlin.random.Random
+import com.nextcloud.utils.AppConstants.PROGRESS_PERCENTAGE_MAX
+
+class FolderDownloadWorkerNotificationManager(
+    private val context: Context,
+    private val showCancel: Boolean = true,
+    viewThemeUtils: ViewThemeUtils?
+) : WorkerNotificationManager(
+    id = NOTIFICATION_ID,
+    context,
+    viewThemeUtils,
+    tickerId = R.string.folder_download_worker_ticker_id,
+    channelId = NotificationUtils.NOTIFICATION_CHANNEL_DOWNLOAD
+) {
+
+    companion object {
+        private const val NOTIFICATION_ID = 391
+    }
+
+    private fun getNotification(title: String, description: String = "", progress: Int? = null): Notification =
+        notificationBuilder.apply {
+            setSmallIcon(R.drawable.ic_sync)
+            setContentTitle(title)
+            clearActions()
+            setContentText(description)
+
+            if (progress != null) {
+                setProgress(PROGRESS_PERCENTAGE_MAX, progress, false)
+                if (showCancel) {
+                    addAction(
+                        R.drawable.ic_cancel,
+                        context.getString(R.string.common_cancel),
+                        getCancelPendingIntent()
+                    )
+                }
+            } else {
+                setProgress(0, 0, false)
+            }
+
+            setAutoCancel(true)
+        }.build()
+
+    private fun getCancelPendingIntent(): PendingIntent {
+        val intent = Intent(context, FolderDownloadWorkerReceiver::class.java)
+
+        return PendingIntent.getBroadcast(
+            context,
+            Random.nextInt(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+    }
+
+    @Suppress("MagicNumber")
+    fun showProgressNotification(folderName: String, filename: String, currentIndex: Int, totalFileSize: Int) {
+        mainThread(delay = 0) {
+            val currentFileIndex = (currentIndex + 1)
+            val description =
+                context.getString(R.string.folder_download_counter, currentFileIndex, totalFileSize, filename)
+            val progress = (currentFileIndex * PROGRESS_PERCENTAGE_MAX) / totalFileSize
+            val notification = getNotification(folderName, description, progress)
+            showNotification(notification)
+        }
+    }
+
+    fun showCompletionNotification(folderName: String, success: Boolean) {
+        mainThread(delay = 0) {
+            val titleId = if (success) {
+                R.string.folder_download_success_notification_title
+            } else {
+                R.string.folder_download_error_notification_title
+            }
+
+            val title = context.getString(titleId, folderName)
+
+            val notification = getNotification(title)
+            notificationManager.notify(NOTIFICATION_ID, notification)
+        }
+    }
+
+    suspend fun showNotAvailableDiskSpace() = withContext(Dispatchers.Main) {
+        val title = context.getString(R.string.folder_download_insufficient_disk_space_notification_title)
+        val notification = getNotification(title)
+        notificationManager.notify(Random.nextInt(), notification)
+    }
+
+    fun getForegroundInfo(folder: OCFile?): ForegroundInfo {
+        val notification = if (folder != null) {
+            getNotification(folder.fileName)
+        } else {
+            getNotification(title = context.getString(R.string.folder_download_worker_ticker_id))
+        }
+
+        return getForegroundInfo(notification)
+    }
+
+    fun dismiss() {
+        notificationManager.cancel(NOTIFICATION_ID)
+    }
+}

@@ -1,25 +1,13 @@
 /*
- * Nextcloud Android client application
+ * Nextcloud - Android Client
  *
- * @author Chris Narkiewicz
- * Copyright (C) 2020 Chris Narkiewicz <hello@ezaquarii.com>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2020 Chris Narkiewicz <hello@ezaquarii.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.migrations
 
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import java.util.TreeSet
 
 class MigrationsDb(private val migrationsDb: SharedPreferences) {
@@ -52,12 +40,12 @@ class MigrationsDb(private val migrationsDb: SharedPreferences) {
             addAll(oldApplied)
             addAll(migrations.map { it.toString() })
         }
-        migrationsDb.edit().putStringSet(DB_KEY_APPLIED_MIGRATIONS, newApplied).apply()
+        migrationsDb.edit { putStringSet(DB_KEY_APPLIED_MIGRATIONS, newApplied) }
     }
 
     var lastMigratedVersion: Int
         set(value) {
-            migrationsDb.edit().putInt(DB_KEY_LAST_MIGRATED_VERSION, value).apply()
+            migrationsDb.edit { putInt(DB_KEY_LAST_MIGRATED_VERSION, value) }
         }
         get() {
             return migrationsDb.getInt(DB_KEY_LAST_MIGRATED_VERSION, NO_LAST_MIGRATED_VERSION)
@@ -69,17 +57,17 @@ class MigrationsDb(private val migrationsDb: SharedPreferences) {
 
     fun setFailed(id: Int, error: String) {
         migrationsDb
-            .edit()
-            .putBoolean(DB_KEY_FAILED, true)
-            .putString(DB_KEY_FAILED_MIGRATION_ERROR_MESSAGE, error)
-            .putInt(DB_KEY_FAILED_MIGRATION_ID, id)
-            .apply()
+            .edit {
+                putBoolean(DB_KEY_FAILED, true)
+                    .putString(DB_KEY_FAILED_MIGRATION_ERROR_MESSAGE, error)
+                    .putInt(DB_KEY_FAILED_MIGRATION_ID, id)
+            }
     }
 
     fun clearMigrations() {
-        migrationsDb.edit()
-            .putStringSet(DB_KEY_APPLIED_MIGRATIONS, emptySet())
-            .putInt(DB_KEY_LAST_MIGRATED_VERSION, 0)
-            .apply()
+        migrationsDb.edit {
+            putStringSet(DB_KEY_APPLIED_MIGRATIONS, emptySet())
+                .putInt(DB_KEY_LAST_MIGRATED_VERSION, 0)
+        }
     }
 }

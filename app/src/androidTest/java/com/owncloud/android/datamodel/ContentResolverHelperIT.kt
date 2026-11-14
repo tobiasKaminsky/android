@@ -1,31 +1,15 @@
 /*
- * Nextcloud Android client application
+ * Nextcloud - Android Client
  *
- * @author Álvaro Brey Vilas
- * Copyright (C) 2021 Álvaro Brey Vilas
- * Copyright (C) 2021 Nextcloud GmbH
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2021 Álvaro Brey <alvaro@alvarobrey.com>
+ * SPDX-FileCopyrightText: 2021 Nextcloud GmbH
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
-
 package com.owncloud.android.datamodel
 
 import android.content.ContentResolver
 import android.net.Uri
-import android.os.Build
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.filters.SdkSuppress
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -57,7 +41,6 @@ class ContentResolverHelperIT {
     }
 
     @Test
-    @SdkSuppress(minSdkVersion = Build.VERSION_CODES.O)
     fun contentResolver_onAndroid26_usesNewAPI() {
         ContentResolverHelper
             .queryResolver(resolver, URI, PROJECTION, SELECTION, null, SORT_COLUMN, SORT_DIRECTION, LIMIT)
@@ -73,22 +56,6 @@ class ContentResolverHelperIT {
                     bundle.getInt(ContentResolver.QUERY_ARG_SORT_DIRECTION) == SORT_DIRECTION_INT
             },
             null
-        )
-    }
-
-    @Test
-    @SdkSuppress(maxSdkVersion = Build.VERSION_CODES.N_MR1)
-    fun contentResolver_onAndroidBelow26_usesOldAPI() {
-        ContentResolverHelper
-            .queryResolver(resolver, URI, PROJECTION, SELECTION, null, SORT_COLUMN, SORT_DIRECTION, LIMIT)
-
-        verify(resolver).query(
-            eq(URI),
-            eq(PROJECTION),
-            eq(SELECTION),
-            eq(null),
-            eq("$SORT_COLUMN $SORT_DIRECTION LIMIT $LIMIT"),
-            eq(null)
         )
     }
 }

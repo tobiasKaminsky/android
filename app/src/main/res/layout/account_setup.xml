@@ -1,24 +1,11 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!--
-  Nextcloud Android client application
-
-  Copyright (C) 2012 Bartek Przybylski
-  Copyright (C) 2015-2016 ownCloud Inc.
-  Copyright (C) 2016 Nextcloud
-  Copyright (C) 2019 Tobias Kaminsky
-
-  This program is free software; you can redistribute it and/or
-  modify it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE
-  License as published by the Free Software Foundation; either
-  version 3 of the License, or any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU AFFERO GENERAL PUBLIC LICENSE for more details.
-
-  You should have received a copy of the GNU Affero General Public
-  License along with this program.  If not, see <http://www.gnu.org/licenses/>.
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ Nextcloud - Android Client
+  ~
+  ~ SPDX-FileCopyrightText: 2019 Tobias Kaminsky <tobias@kaminsky.me>
+  ~ SPDX-FileCopyrightText: 2016 Nextcloud
+  ~ SPDX-FileCopyrightText: 2015-2016 ownCloud Inc.
+  ~ SPDX-FileCopyrightText: 2012 Bartosz Przybylski <bart.p.pl@gmail.com>
+  ~ SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
 -->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -27,6 +14,7 @@
     android:layout_height="match_parent"
     android:layout_gravity="center"
     android:fillViewport="true"
+    android:foregroundTint="@color/login_text_color"
     android:orientation="vertical">
 
     <LinearLayout
@@ -38,8 +26,8 @@
 
         <ImageView
             android:id="@+id/thumbnail"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_width="@dimen/splash_image_size"
+            android:layout_height="@dimen/splash_image_size"
             android:layout_marginBottom="@dimen/standard_padding"
             android:contentDescription="@string/app_name"
             android:src="@drawable/logo" />
@@ -47,9 +35,9 @@
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:gravity="center"
             android:maxWidth="@dimen/default_login_width"
             android:minWidth="@dimen/default_login_width"
-            android:gravity="center"
             android:orientation="vertical"
             android:padding="@dimen/standard_half_padding">
 
@@ -75,10 +63,10 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:gravity="top"
-                        android:importantForAutofill="no"
                         android:inputType="textUri|textNoSuggestions|textEmailAddress"
                         android:lines="1"
                         android:minLines="1"
+                        android:text="@string/suggested_server"
                         android:paddingStart="@dimen/standard_padding"
                         android:paddingEnd="@dimen/alternate_padding_right"
                         android:scrollbars="vertical"
@@ -90,6 +78,16 @@
 
                 </com.google.android.material.textfield.TextInputLayout>
             </FrameLayout>
+
+            <Spinner
+                android:id="@+id/servers_spinner"
+                android:layout_width="wrap_content"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:foregroundTint="#FFFFFF"
+                android:spinnerMode="dialog"
+                android:textColor="@color/white_helper_text"
+                android:visibility="gone" />
 
             <TextView
                 android:id="@+id/host_url_input_helper_text"

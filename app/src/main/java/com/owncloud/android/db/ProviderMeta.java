@@ -1,23 +1,14 @@
 /*
- * ownCloud Android client application
+ * Nextcloud - Android Client
  *
- * @author Bartek Przybylski
- * @author David A. Velasco
- * @author masensio
- * Copyright (C) 2011  Bartek Przybylski
- * Copyright (C) 2016 ownCloud Inc.
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2,
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2026 Alper Ozturk <alper.ozturk@nextcloud.com>
+ * SPDX-FileCopyrightText: 2022 Álvaro Brey  <alvaro@alvarobrey.com>
+ * SPDX-FileCopyrightText: 2016-2021 Tobias Kaminsky <tobias@kaminsky.me>
+ * SPDX-FileCopyrightText: 2016 ownCloud Inc.
+ * SPDX-FileCopyrightText: 2014-2015 María Asensio Valverde <masensio@solidgear.es>
+ * SPDX-FileCopyrightText: 2012 David A. Velasco <dvelasco@solidgear.es>
+ * SPDX-FileCopyrightText: 2011 Bartosz Przybylski <bart.p.pl@gmail.com>
+ * SPDX-License-Identifier: GPL-2.0-only AND (AGPL-3.0-or-later OR GPL-2.0-only)
  */
 package com.owncloud.android.db;
 
@@ -26,8 +17,6 @@ import android.provider.BaseColumns;
 
 import com.owncloud.android.MainApp;
 
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -35,13 +24,27 @@ import java.util.List;
  */
 public class ProviderMeta {
     public static final String DB_NAME = "filelist";
-    public static final int DB_VERSION = 71;
+    public static final int DB_VERSION = 106;
 
     private ProviderMeta() {
         // No instance
     }
 
     static public class ProviderTableMeta implements BaseColumns {
+        // region Recommended files table
+        public static final String RECOMMENDED_FILE_TABLE_NAME = "recommended_files";
+        public static final String RECOMMENDED_FILE_NAME = "name";
+        public static final String RECOMMENDED_FILE_ACCOUNT_NAME = "account_name";
+        public static final String RECOMMENDED_FILE_DIRECTORY = "directory";
+        public static final String RECOMMENDED_FILE_EXTENSIONS = "extension";
+        public static final String RECOMMENDED_FILE_MIME_TYPE = "mime_type";
+        public static final String RECOMMENDED_FILE_HAS_PREVIEW = "has_preview";
+        public static final String RECOMMENDED_FILE_REASON = "reason";
+        public static final String RECOMMENDED_TIMESTAMP = "timestamp";
+        // endregion
+
+        // region Table names
+        public static final String OFFLINE_OPERATION_TABLE_NAME = "offline_operations";
         public static final String FILE_TABLE_NAME = "filelist";
         public static final String OCSHARES_TABLE_NAME = "ocshares";
         public static final String CAPABILITIES_TABLE_NAME = "capabilities";
@@ -50,31 +53,33 @@ public class ProviderMeta {
         public static final String EXTERNAL_LINKS_TABLE_NAME = "external_links";
         public static final String ARBITRARY_DATA_TABLE_NAME = "arbitrary_data";
         public static final String VIRTUAL_TABLE_NAME = "virtual";
+        public static final String ASSISTANT_TABLE_NAME = "assistant";
         public static final String FILESYSTEM_TABLE_NAME = "filesystem";
         public static final String EDITORS_TABLE_NAME = "editors";
         public static final String CREATORS_TABLE_NAME = "creators";
+        // endregion
 
         private static final String CONTENT_PREFIX = "content://";
 
         public static final Uri CONTENT_URI = Uri.parse(CONTENT_PREFIX
-                + MainApp.getAuthority() + "/");
+                                                            + MainApp.getAuthority() + "/");
         public static final Uri CONTENT_URI_FILE = Uri.parse(CONTENT_PREFIX
-                + MainApp.getAuthority() + "/file");
+                                                                 + MainApp.getAuthority() + "/file");
         public static final Uri CONTENT_URI_DIR = Uri.parse(CONTENT_PREFIX
-                + MainApp.getAuthority() + "/dir");
+                                                                + MainApp.getAuthority() + "/dir");
         public static final Uri CONTENT_URI_SHARE = Uri.parse(CONTENT_PREFIX
-                + MainApp.getAuthority() + "/shares");
+                                                                  + MainApp.getAuthority() + "/shares");
         public static final Uri CONTENT_URI_CAPABILITIES = Uri.parse(CONTENT_PREFIX
-                + MainApp.getAuthority() + "/capabilities");
+                                                                         + MainApp.getAuthority() + "/capabilities");
         public static final Uri CONTENT_URI_UPLOADS = Uri.parse(CONTENT_PREFIX
-                + MainApp.getAuthority() + "/uploads");
+                                                                    + MainApp.getAuthority() + "/uploads");
         public static final Uri CONTENT_URI_SYNCED_FOLDERS = Uri.parse(CONTENT_PREFIX
-                + MainApp.getAuthority() + "/synced_folders");
+                                                                           + MainApp.getAuthority() + "/synced_folders");
         public static final Uri CONTENT_URI_EXTERNAL_LINKS = Uri.parse(CONTENT_PREFIX
-                + MainApp.getAuthority() + "/external_links");
+                                                                           + MainApp.getAuthority() + "/external_links");
         public static final Uri CONTENT_URI_VIRTUAL = Uri.parse(CONTENT_PREFIX + MainApp.getAuthority() + "/virtual");
         public static final Uri CONTENT_URI_FILESYSTEM = Uri.parse(CONTENT_PREFIX
-                + MainApp.getAuthority() + "/filesystem");
+                                                                       + MainApp.getAuthority() + "/filesystem");
 
 
         public static final String CONTENT_TYPE = "vnd.android.cursor.dir/vnd.owncloud.file";
@@ -86,6 +91,7 @@ public class ProviderMeta {
         public static final String FILE_ENCRYPTED_NAME = "encrypted_filename";
         public static final String FILE_CREATION = "created";
         public static final String FILE_MODIFIED = "modified";
+        public static final String FILE_UPLOADED = "uploaded";
         public static final String FILE_MODIFIED_AT_LAST_SYNC_FOR_DATA = "modified_at_last_sync_for_data";
         public static final String FILE_CONTENT_LENGTH = "content_length";
         public static final String FILE_CONTENT_TYPE = "content_type";
@@ -107,7 +113,9 @@ public class ProviderMeta {
         public static final String FILE_IS_DOWNLOADING = "is_downloading";
         public static final String FILE_ETAG_IN_CONFLICT = "etag_in_conflict";
         public static final String FILE_FAVORITE = "favorite";
+        public static final String FILE_HIDDEN = "hidden";
         public static final String FILE_IS_ENCRYPTED = "is_encrypted";
+        public static final String FILE_IS_READ_ONLY = "is_read_only";
         public static final String FILE_MOUNT_TYPE = "mount_type";
         public static final String FILE_HAS_PREVIEW = "has_preview";
         public static final String FILE_UNREAD_COMMENTS_COUNT = "unread_comments_count";
@@ -117,6 +125,8 @@ public class ProviderMeta {
         public static final String FILE_SHAREES = "sharees";
         public static final String FILE_RICH_WORKSPACE = "rich_workspace";
         public static final String FILE_METADATA_SIZE = "metadata_size";
+        public static final String FILE_METADATA_GPS = "metadata_gps";
+        public static final String FILE_METADATA_LIVE_PHOTO = "metadata_live_photo";
         public static final String FILE_LOCKED = "locked";
         public static final String FILE_LOCK_TYPE = "lock_type";
         public static final String FILE_LOCK_OWNER = "lock_owner";
@@ -126,54 +136,64 @@ public class ProviderMeta {
         public static final String FILE_LOCK_TIMEOUT = "lock_timeout";
         public static final String FILE_LOCK_TOKEN = "lock_token";
         public static final String FILE_TAGS = "tags";
+        public static final String FILE_E2E_COUNTER = "e2e_counter";
+        public static final String FILE_INTERNAL_TWO_WAY_SYNC_TIMESTAMP = "internal_two_way_sync_timestamp";
+        public static final String FILE_INTERNAL_TWO_WAY_SYNC_RESULT = "internal_two_way_sync_result";
 
-        public static final List<String> FILE_ALL_COLUMNS = Collections.unmodifiableList(Arrays.asList(
-            _ID,
-            FILE_PARENT,
-            FILE_NAME,
-            FILE_ENCRYPTED_NAME,
-            FILE_CREATION,
-            FILE_MODIFIED,
-            FILE_MODIFIED_AT_LAST_SYNC_FOR_DATA,
-            FILE_CONTENT_LENGTH,
-            FILE_CONTENT_TYPE,
-            FILE_STORAGE_PATH,
-            FILE_PATH,
-            FILE_PATH_DECRYPTED,
-            FILE_ACCOUNT_OWNER,
-            FILE_LAST_SYNC_DATE,
-            FILE_LAST_SYNC_DATE_FOR_DATA,
-            FILE_KEEP_IN_SYNC,
-            FILE_ETAG,
-            FILE_ETAG_ON_SERVER,
-            FILE_SHARED_VIA_LINK,
-            FILE_SHARED_WITH_SHAREE,
-            FILE_PERMISSIONS,
-            FILE_REMOTE_ID,
-            FILE_LOCAL_ID,
-            FILE_UPDATE_THUMBNAIL,
-            FILE_IS_DOWNLOADING,
-            FILE_ETAG_IN_CONFLICT,
-            FILE_FAVORITE,
-            FILE_IS_ENCRYPTED,
-            FILE_MOUNT_TYPE,
-            FILE_HAS_PREVIEW,
-            FILE_UNREAD_COMMENTS_COUNT,
-            FILE_OWNER_ID,
-            FILE_OWNER_DISPLAY_NAME,
-            FILE_NOTE,
-            FILE_SHAREES,
-            FILE_RICH_WORKSPACE,
-            FILE_LOCKED,
-            FILE_LOCK_TYPE,
-            FILE_LOCK_OWNER,
-            FILE_LOCK_OWNER_DISPLAY_NAME,
-            FILE_LOCK_OWNER_EDITOR,
-            FILE_LOCK_TIMESTAMP,
-            FILE_LOCK_TIMEOUT,
-            FILE_LOCK_TOKEN,
-            FILE_METADATA_SIZE,
-            FILE_TAGS));
+        public static final List<String> FILE_ALL_COLUMNS = List.of(_ID,
+                                                                    FILE_PARENT,
+                                                                    FILE_NAME,
+                                                                    FILE_ENCRYPTED_NAME,
+                                                                    FILE_UPLOADED,
+                                                                    FILE_CREATION,
+                                                                    FILE_MODIFIED,
+                                                                    FILE_MODIFIED_AT_LAST_SYNC_FOR_DATA,
+                                                                    FILE_CONTENT_LENGTH,
+                                                                    FILE_CONTENT_TYPE,
+                                                                    FILE_STORAGE_PATH,
+                                                                    FILE_PATH,
+                                                                    FILE_PATH_DECRYPTED,
+                                                                    FILE_ACCOUNT_OWNER,
+                                                                    FILE_LAST_SYNC_DATE,
+                                                                    FILE_LAST_SYNC_DATE_FOR_DATA,
+                                                                    FILE_KEEP_IN_SYNC,
+                                                                    FILE_ETAG,
+                                                                    FILE_ETAG_ON_SERVER,
+                                                                    FILE_SHARED_VIA_LINK,
+                                                                    FILE_SHARED_WITH_SHAREE,
+                                                                    FILE_PERMISSIONS,
+                                                                    FILE_REMOTE_ID,
+                                                                    FILE_LOCAL_ID,
+                                                                    FILE_UPDATE_THUMBNAIL,
+                                                                    FILE_IS_DOWNLOADING,
+                                                                    FILE_ETAG_IN_CONFLICT,
+                                                                    FILE_FAVORITE,
+                                                                    FILE_HIDDEN,
+                                                                    FILE_IS_ENCRYPTED,
+                                                                    FILE_IS_READ_ONLY,
+                                                                    FILE_MOUNT_TYPE,
+                                                                    FILE_HAS_PREVIEW,
+                                                                    FILE_UNREAD_COMMENTS_COUNT,
+                                                                    FILE_OWNER_ID,
+                                                                    FILE_OWNER_DISPLAY_NAME,
+                                                                    FILE_NOTE,
+                                                                    FILE_SHAREES,
+                                                                    FILE_RICH_WORKSPACE,
+                                                                    FILE_LOCKED,
+                                                                    FILE_LOCK_TYPE,
+                                                                    FILE_LOCK_OWNER,
+                                                                    FILE_LOCK_OWNER_DISPLAY_NAME,
+                                                                    FILE_LOCK_OWNER_EDITOR,
+                                                                    FILE_LOCK_TIMESTAMP,
+                                                                    FILE_LOCK_TIMEOUT,
+                                                                    FILE_LOCK_TOKEN,
+                                                                    FILE_METADATA_SIZE,
+                                                                    FILE_METADATA_LIVE_PHOTO,
+                                                                    FILE_E2E_COUNTER,
+                                                                    FILE_TAGS,
+                                                                    FILE_METADATA_GPS,
+                                                                    FILE_INTERNAL_TWO_WAY_SYNC_TIMESTAMP,
+                                                                    FILE_INTERNAL_TWO_WAY_SYNC_RESULT);
         public static final String FILE_DEFAULT_SORT_ORDER = FILE_NAME + " collate nocase asc";
 
         // Columns of ocshares table
@@ -196,9 +216,12 @@ public class ProviderMeta {
         public static final String OCSHARES_HIDE_DOWNLOAD = "hide_download";
         public static final String OCSHARES_SHARE_LINK = "share_link";
         public static final String OCSHARES_SHARE_LABEL = "share_label";
+        public static final String OCSHARES_DOWNLOADLIMIT_LIMIT = "download_limit_limit";
+        public static final String OCSHARES_DOWNLOADLIMIT_COUNT = "download_limit_count";
+        public static final String OCSHARES_ATTRIBUTES = "attributes";
 
         public static final String OCSHARES_DEFAULT_SORT_ORDER = OCSHARES_FILE_SOURCE
-                + " collate nocase asc";
+            + " collate nocase asc";
 
         // Columns of capabilities table
         public static final String CAPABILITIES_ACCOUNT_NAME = "account";
@@ -215,11 +238,11 @@ public class ProviderMeta {
         public static final String CAPABILITIES_SHARING_PUBLIC_ASK_FOR_OPTIONAL_PASSWORD =
             "sharing_public_ask_for_optional_password";
         public static final String CAPABILITIES_SHARING_PUBLIC_EXPIRE_DATE_ENABLED =
-                "sharing_public_expire_date_enabled";
+            "sharing_public_expire_date_enabled";
         public static final String CAPABILITIES_SHARING_PUBLIC_EXPIRE_DATE_DAYS =
-                "sharing_public_expire_date_days";
+            "sharing_public_expire_date_days";
         public static final String CAPABILITIES_SHARING_PUBLIC_EXPIRE_DATE_ENFORCED =
-                "sharing_public_expire_date_enforced";
+            "sharing_public_expire_date_enforced";
         public static final String CAPABILITIES_SHARING_PUBLIC_SEND_MAIL = "sharing_public_send_mail";
         public static final String CAPABILITIES_SHARING_PUBLIC_UPLOAD = "sharing_public_upload";
         public static final String CAPABILITIES_SHARING_USER_SEND_MAIL = "sharing_user_send_mail";
@@ -242,6 +265,7 @@ public class ProviderMeta {
         public static final String CAPABILITIES_SERVER_BACKGROUND_PLAIN = "background_plain";
         public static final String CAPABILITIES_END_TO_END_ENCRYPTION = "end_to_end_encryption";
         public static final String CAPABILITIES_END_TO_END_ENCRYPTION_KEYS_EXIST = "end_to_end_encryption_keys_exist";
+        public static final String CAPABILITIES_END_TO_END_ENCRYPTION_API_VERSION = "end_to_end_encryption_api_version";
         public static final String CAPABILITIES_ACTIVITY = "activity";
         public static final String CAPABILITIES_RICHDOCUMENT = "richdocument";
         public static final String CAPABILITIES_RICHDOCUMENT_MIMETYPE_LIST = "richdocument_mimetype_list";
@@ -256,7 +280,26 @@ public class ProviderMeta {
         public static final String CAPABILITIES_ETAG = "etag";
         public static final String CAPABILITIES_USER_STATUS = "user_status";
         public static final String CAPABILITIES_USER_STATUS_SUPPORTS_EMOJI = "user_status_supports_emoji";
+        public static final String CAPABILITIES_USER_STATUS_SUPPORTS_BUSY = "user_status_supports_busy";
+        public static final String CAPABILITIES_ASSISTANT = "assistant";
         public static final String CAPABILITIES_GROUPFOLDERS = "groupfolders";
+        public static final String CAPABILITIES_DROP_ACCOUNT = "drop_account";
+        public static final String CAPABILITIES_SECURITY_GUARD = "security_guard";
+        public static final String CAPABILITIES_GOVERNANCE = "governance";
+        public static final String CAPABILITIES_FORBIDDEN_FILENAME_CHARACTERS = "forbidden_filename_characters";
+        public static final String CAPABILITIES_FORBIDDEN_FILENAMES = "forbidden_filenames";
+        public static final String CAPABILITIES_FORBIDDEN_FORBIDDEN_FILENAME_EXTENSIONS = "forbidden_filename_extensions";
+        public static final String CAPABILITIES_FORBIDDEN_FORBIDDEN_FILENAME_BASE_NAMES = "forbidden_filename_basenames";
+        public static final String CAPABILITIES_WINDOWS_COMPATIBLE_FILENAMES = "windows_compatible_filenames";
+        public static final String CAPABILITIES_FILES_DOWNLOAD_LIMIT = "files_download_limit";
+        public static final String CAPABILITIES_FILES_DOWNLOAD_LIMIT_DEFAULT = "files_download_limit_default";
+        public static final String CAPABILITIES_NOTES_FOLDER_PATH = "notes_folder_path";
+        public static final String CAPABILITIES_DEFAULT_PERMISSIONS = "default_permissions";
+        public static final String CAPABILITIES_HAS_VALID_SUBSCRIPTION = "has_valid_subscription";
+        public static final String CAPABILITIES_CLIENT_INTEGRATION_JSON = "client_integration_json";
+        public static final String CAPABILITIES_MOD_REWRITE_WORKING = "mod_rewrite_working";
+        public static final String CAPABILITIES_CHUNKED_UPLOAD_MAX_SIZE = "chunked_upload_max_size";
+        public static final String CAPABILITIES_SHARING_JSON = "sharing_json";
 
         //Columns of Uploads table
         public static final String UPLOADS_LOCAL_PATH = "local_path";
@@ -269,12 +312,23 @@ public class ProviderMeta {
         public static final String UPLOADS_NAME_COLLISION_POLICY = "name_collision_policy";
         public static final String UPLOADS_IS_CREATE_REMOTE_FOLDER = "is_create_remote_folder";
         public static final String UPLOADS_UPLOAD_END_TIMESTAMP = "upload_end_timestamp";
+        public static final String UPLOADS_UPLOAD_END_TIMESTAMP_LONG = "upload_end_timestamp_long";
+
         public static final String UPLOADS_LAST_RESULT = "last_result";
         public static final String UPLOADS_CREATED_BY = "created_by";
         public static final String UPLOADS_DEFAULT_SORT_ORDER = ProviderTableMeta._ID + " collate nocase desc";
         public static final String UPLOADS_IS_WHILE_CHARGING_ONLY = "is_while_charging_only";
         public static final String UPLOADS_IS_WIFI_ONLY = "is_wifi_only";
         public static final String UPLOADS_FOLDER_UNLOCK_TOKEN = "folder_unlock_token";
+
+        // Columns of offline operation table
+        public static final String OFFLINE_OPERATION_PARENT_OC_FILE_ID = "offline_operations_parent_oc_file_id";
+        public static final String OFFLINE_OPERATION_TYPE = "offline_operations_type";
+        public static final String OFFLINE_OPERATION_PATH = "offline_operations_path";
+        public static final String OFFLINE_OPERATION_MODIFIED_AT = "offline_operations_modified_at";
+        public static final String OFFLINE_OPERATION_CREATED_AT = "offline_operations_created_at";
+        public static final String OFFLINE_OPERATION_FILE_NAME = "offline_operations_file_name";
+
 
         // Columns of synced folder table
         public static final String SYNCED_FOLDER_LOCAL_PATH = "local_path";
@@ -290,6 +344,9 @@ public class ProviderMeta {
         public static final String SYNCED_FOLDER_UPLOAD_ACTION = "upload_option";
         public static final String SYNCED_FOLDER_NAME_COLLISION_POLICY = "name_collision_policy";
         public static final String SYNCED_FOLDER_HIDDEN = "hidden";
+        public static final String SYNCED_FOLDER_SUBFOLDER_RULE = "sub_folder_rule";
+        public static final String SYNCED_FOLDER_EXCLUDE_HIDDEN = "exclude_hidden";
+        public static final String SYNCED_FOLDER_LAST_SCAN_TIMESTAMP_MS = "last_scan_timestamp_ms";
 
         // Columns of external links table
         public static final String EXTERNAL_LINKS_ICON_URL = "icon_url";
@@ -311,12 +368,15 @@ public class ProviderMeta {
 
         // Columns of filesystem data table
         public static final String FILESYSTEM_FILE_LOCAL_PATH = "local_path";
+        public static final String FILESYSTEM_FILE_REMOTE_PATH = "remote_path";
         public static final String FILESYSTEM_FILE_MODIFIED = "modified_at";
         public static final String FILESYSTEM_FILE_IS_FOLDER = "is_folder";
         public static final String FILESYSTEM_FILE_FOUND_RECENTLY = "found_at";
         public static final String FILESYSTEM_FILE_SENT_FOR_UPLOAD = "upload_triggered";
         public static final String FILESYSTEM_SYNCED_FOLDER_ID = "syncedfolder_id";
         public static final String FILESYSTEM_CRC32 = "crc32";
+
+        public static final String CAPABILITIES_RECOMMENDATION = "recommendation";
 
         private ProviderTableMeta() {
             // No instance

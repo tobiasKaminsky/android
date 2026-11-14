@@ -1,9 +1,16 @@
 #!/usr/bin/env bash
 
+# SPDX-FileCopyrightText: 2018-2024 Nextcloud GmbH and Nextcloud contributors
+# SPDX-FileCopyrightText: 2018-2022 Tobias Kaminsky <tobias@kaminsky.me>
+# SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
+
 upload() {
     scripts/deleteOldComments.sh "$BRANCH" "$TYPE" "$PR"
 
     cd $1
+    pwd
+    find . -type d
+    find . -type f
 
     find . -type d -exec curl > /dev/null 2>&1 -u $USER:$PASS -X MKCOL $URL/$REMOTE_FOLDER/$(echo {} | sed s#\./##) \;
     find . -type f -exec curl > /dev/null 2>&1 -u $USER:$PASS -X PUT $URL/$REMOTE_FOLDER/$(echo {} | sed s#\./##) --upload-file {} \;
@@ -23,10 +30,9 @@ upload() {
 #5: TYPE (IT or Unit)
 #6: DRONE_PULL_REQUEST
 
-URL=https://nextcloud.kaminsky.me/remote.php/webdav/android-integrationTests
-ID=$3
 USER=$1
 PASS=$2
+ID=$3
 BRANCH=$4
 TYPE=$5
 PR=$6
@@ -35,6 +41,7 @@ source scripts/lib.sh
 
 REMOTE_FOLDER=$ID-$TYPE-$BRANCH-$(date +%H-%M)
 BRANCH_TYPE=$BRANCH-$TYPE
+URL=https://nextcloud.kaminsky.me/remote.php/dav/files/$USER/android-integrationTests
 
 set -e
 
@@ -44,11 +51,11 @@ if [ -z $USER ] || [ -z $PASS ]; then
 fi
 
 if [ $TYPE = "IT" ]; then
-    FOLDER=app/build/reports/androidTests/connected/flavors/gplay
+    FOLDER=app/build/reports/androidTests/connected/debug/flavors/gplay
 elif [ $TYPE = "Unit" ]; then
     FOLDER=app/build/reports/tests/testGplayDebugUnitTest
 else
-    FOLDER=app/build/reports/shot/gplay/debug/verification
+    FOLDER=app/build/reports/shot/generic/debug/verification
 fi
 
 if [ -e $FOLDER ]; then
@@ -61,10 +68,10 @@ else
     -X POST https://api.github.com/repos/nextcloud/android/issues/$PR/comments \
     -d "{ \"body\" : \"$BRANCH_TYPE test failed, but no output was generated. Maybe a preliminary stage failed. \" }"
 
-    if [ -e app/build/reports/androidTests/connected/flavors/gplay ] ; then
+    if [ -e app/build/reports/androidTests/connected/debug/flavors/gplay ] ; then
         TYPE="IT"
         BRANCH_TYPE=$BRANCH-$TYPE
-        upload "app/build/reports/androidTests/connected/flavors/gplay"
+        upload "app/build/reports/androidTests/connected/debug/flavors/gplay"
     fi
 
     if [ -e app/build/reports/tests/testGplayDebugUnitTest ] ; then
@@ -73,10 +80,10 @@ else
         upload "app/build/reports/tests/testGplayDebugUnitTest"
     fi
 
-    if [ -e app/build/reports/shot/gplay/debug/verification ] ; then
+    if [ -e app/build/reports/shot/generic/debug/verification ] ; then
         TYPE="Screenshot"
         BRANCH_TYPE=$BRANCH-$TYPE
-        upload "app/build/reports/shot/gplay/debug/verification"
+        upload "app/build/reports/shot/generic/debug/verification"
     fi
 
     exit 1 # always fail

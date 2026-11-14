@@ -1,0 +1,582 @@
+/*
+ * Nextcloud - Android Client
+ *
+ * SPDX-FileCopyrightText: 2024 Alper Ozturk <alper.ozturk@nextcloud.com>
+ * SPDX-FileCopyrightText: 2024 Nextcloud GmbH
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
+ */
+package com.nextcloud.client.assistant
+
+import android.app.Activity
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.pullToRefresh
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.nextcloud.client.assistant.chat.ChatContent
+import com.nextcloud.client.assistant.chat.ChatViewModel
+import com.nextcloud.client.assistant.conversation.ConversationScreen
+import com.nextcloud.client.assistant.conversation.ConversationViewModel
+import com.nextcloud.client.assistant.conversation.repository.MockConversationRemoteRepository
+import com.nextcloud.client.assistant.extensions.getInputTitle
+import com.nextcloud.client.assistant.model.AssistantPage
+import com.nextcloud.client.assistant.model.AssistantScreenState
+import com.nextcloud.client.assistant.model.ScreenOverlayState
+import com.nextcloud.client.assistant.repository.local.MockAssistantLocalRepository
+import com.nextcloud.client.assistant.repository.remote.MockAssistantRemoteRepository
+import com.nextcloud.client.assistant.task.TaskView
+import com.nextcloud.client.assistant.taskTypes.TaskTypesRow
+import com.nextcloud.client.assistant.translate.TranslationScreen
+import com.nextcloud.client.assistant.translate.TranslationViewModel
+import com.nextcloud.ui.composeActivity.ComposeActivity
+import com.nextcloud.ui.composeActivity.ComposeViewModel
+import com.nextcloud.ui.composeComponents.alertDialog.SimpleAlertDialog
+import com.nextcloud.ui.composeComponents.alertDialog.TaskSelectionAlertDialog
+import com.nextcloud.ui.composeComponents.bottomSheet.MoreActionsBottomSheet
+import com.nextcloud.utils.extensions.getChat
+import com.owncloud.android.R
+import com.owncloud.android.lib.resources.assistant.v2.model.Task
+import com.owncloud.android.lib.resources.assistant.v2.model.TaskTypeData
+import com.owncloud.android.lib.resources.status.OCCapability
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+private const val CHAT_INPUT_DELAY = 100L
+private const val PULL_TO_REFRESH_DELAY = 1500L
+
+@Suppress("LongMethod", "CyclomaticComplexMethod")
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AssistantScreen(
+    composeViewModel: ComposeViewModel,
+    viewModel: AssistantViewModel,
+    chatViewModel: ChatViewModel,
+    conversationViewModel: ConversationViewModel,
+    capability: OCCapability,
+    activity: Activity
+) {
+    val selectedText by composeViewModel.selectedText.collectAsState()
+    val sessionTitle by chatViewModel.sessionTitle.collectAsState()
+    val sessionId by viewModel.sessionId.collectAsState()
+    val messageId by viewModel.snackbarMessageId.collectAsState()
+    val screenOverlayState by viewModel.screenOverlayState.collectAsState()
+    val selectedTaskType by viewModel.selectedTaskType.collectAsState()
+    val isTranslationTask by viewModel.isTranslationTask.collectAsState()
+    val filteredTaskList by viewModel.filteredTaskList.collectAsState()
+    val screenState by viewModel.screenState.collectAsState()
+    val taskTypes by viewModel.taskTypes.collectAsState()
+    val scope = rememberCoroutineScope()
+    val pullRefreshState = rememberPullToRefreshState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val pagerState =
+        rememberPagerState(initialPage = AssistantPage.Content.id, pageCount = { AssistantPage.entries.size })
+
+    LaunchedEffect(messageId) {
+        messageId?.let {
+            snackbarHostState.showSnackbar(activity.getString(it))
+            viewModel.updateSnackbarMessage(null)
+        }
+    }
+
+    LaunchedEffect(selectedText) {
+        selectedText?.let { copiedText ->
+            if (copiedText.isBlank()) {
+                return@LaunchedEffect
+            }
+
+            if (pagerState.currentPage == AssistantPage.Conversation.id) {
+                pagerState.scrollToPage(AssistantPage.Content.id)
+            }
+
+            scope.launch(Dispatchers.IO) {
+                val types = viewModel.getRemoteRepository().fetchTaskTypes()
+                if (!types.isNullOrEmpty()) {
+                    withContext(Dispatchers.Main) {
+                        viewModel.updateScreenOverlayState(ScreenOverlayState.TaskTypes(copiedText, types))
+                        snackbarHostState.showSnackbar(activity.getString(R.string.assistant_screen_text_selected))
+                    }
+                }
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.startPolling(sessionId)
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            viewModel.stopPolling()
+        }
+    }
+
+    HorizontalPager(
+        state = pagerState,
+        userScrollEnabled = taskTypes.getChat() != null
+    ) { page ->
+        when (page) {
+            AssistantPage.Conversation.id -> {
+                ConversationScreen(viewModel = conversationViewModel, close = {
+                    scope.launch {
+                        pagerState.scrollToPage(AssistantPage.Content.id)
+                    }
+                }, openChat = { conversation ->
+                    viewModel.updateInputBarText("")
+                    chatViewModel.updateSessionTitle(conversation.timestamp)
+                    chatViewModel.selectConversation(conversation.id)
+                    taskTypes.getChat()?.let { chatTaskType ->
+                        viewModel.selectTaskType(chatTaskType)
+                    }
+                    scope.launch {
+                        pagerState.scrollToPage(AssistantPage.Content.id)
+                    }
+                })
+            }
+
+            AssistantPage.Content.id -> {
+                Scaffold(
+                    modifier = Modifier.pullToRefresh(
+                        false,
+                        pullRefreshState,
+                        onRefresh = {
+                            scope.launch {
+                                delay(PULL_TO_REFRESH_DELAY)
+
+                                val currentSessionId = sessionId
+                                if (currentSessionId != null) {
+                                    chatViewModel.selectConversation(currentSessionId)
+                                } else {
+                                    viewModel.fetchTaskList()
+                                }
+                            }
+                        }
+                    ),
+                    topBar = {
+                        Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.Start) {
+                            taskTypes?.let {
+                                TaskTypesRow(selectedTaskType, data = it, selectTaskType = { task ->
+                                    viewModel.selectTaskType(task)
+                                }, navigateToConversationList = {
+                                    scope.launch {
+                                        pagerState.scrollToPage(AssistantPage.Conversation.id)
+                                    }
+                                })
+                            }
+
+                            if (selectedTaskType?.isChat() == true && sessionTitle != null) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Text(
+                                        text = sessionTitle!!,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        maxLines = 1
+                                    )
+                                }
+                            }
+                        }
+                    },
+                    bottomBar = {
+                        if (!taskTypes.isNullOrEmpty() && selectedTaskType?.isTranslate() != true) {
+                            InputBar(
+                                sessionId,
+                                selectedTaskType,
+                                viewModel,
+                                chatViewModel
+                            )
+                        }
+                    },
+                    snackbarHost = {
+                        SnackbarHost(snackbarHostState)
+                    },
+                    floatingActionButton = {
+                        if (selectedTaskType?.isTranslate() == true && !isTranslationTask) {
+                            FloatingActionButton(onClick = {
+                                viewModel.updateTranslationTaskState(true)
+                                viewModel.updateScreenState(AssistantScreenState.Translation(null))
+                            }, content = {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(16.dp)
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.ic_plus),
+                                        contentDescription = "translate button"
+                                    )
+                                }
+                            })
+                        }
+                    }
+                ) { paddingValues ->
+                    when (screenState) {
+                        is AssistantScreenState.EmptyContent -> {
+                            val state = (screenState as AssistantScreenState.EmptyContent)
+                            EmptyContent(
+                                paddingValues,
+                                iconId = state.iconId,
+                                descriptionId = state.descriptionId,
+                                titleId = state.titleId
+                            )
+                        }
+
+                        AssistantScreenState.TaskContent -> {
+                            TaskContent(
+                                paddingValues,
+                                filteredTaskList ?: listOf(),
+                                viewModel,
+                                capability
+                            )
+                        }
+
+                        AssistantScreenState.ChatContent -> {
+                            ChatContent(
+                                chatViewModel = chatViewModel,
+                                modifier = Modifier.padding(paddingValues)
+                            )
+                        }
+
+                        is AssistantScreenState.Translation -> {
+                            selectedTaskType?.let {
+                                val task = (screenState as AssistantScreenState.Translation).task
+                                val textToTranslate = task?.input?.input ?: selectedText ?: ""
+
+                                val translationViewModel =
+                                    TranslationViewModel(remoteRepository = viewModel.getRemoteRepository())
+
+                                translationViewModel.init(it, task, textToTranslate)
+
+                                TranslationScreen(
+                                    viewModel = translationViewModel,
+                                    assistantViewModel = viewModel
+                                )
+                            }
+                        }
+
+                        else -> EmptyContent(
+                            paddingValues,
+                            iconId = R.drawable.spinner_inner,
+                            titleId = null,
+                            descriptionId = R.string.common_loading
+                        )
+                    }
+
+                    LinearProgressIndicator(
+                        progress = { pullRefreshState.distanceFraction },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    OverlayState(screenOverlayState, activity, viewModel)
+                }
+            }
+        }
+    }
+}
+
+@Suppress("LongMethod")
+@Composable
+private fun InputBar(
+    sessionId: Long?,
+    selectedTaskType: TaskTypeData?,
+    viewModel: AssistantViewModel,
+    chatViewModel: ChatViewModel
+) {
+    val scope = rememberCoroutineScope()
+    val text by viewModel.inputBarText.collectAsState()
+    val chatUIState by chatViewModel.uiState.collectAsState()
+
+    Surface(
+        tonalElevation = 3.dp,
+        shadowElevation = 4.dp,
+        color = MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = stringResource(R.string.assistant_output_generation_warning_text),
+                fontSize = 11.sp,
+                textAlign = TextAlign.Center,
+                color = colorResource(R.color.text_color)
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { viewModel.updateInputBarText(it) },
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = 8.dp),
+                    placeholder = { Text(selectedTaskType?.description ?: "") },
+                    singleLine = true
+                )
+
+                IconButton(
+                    onClick = {
+                        if (text.isBlank()) {
+                            return@IconButton
+                        }
+
+                        val taskType = selectedTaskType ?: return@IconButton
+                        if (taskType.isChat()) {
+                            if (sessionId != null) {
+                                chatViewModel.sendMessage(content = text, sessionId = sessionId)
+                            } else {
+                                chatViewModel.startNewConversation(content = text)
+                            }
+                        } else {
+                            viewModel.createTask(input = text, taskType = taskType)
+                        }
+
+                        scope.launch {
+                            delay(CHAT_INPUT_DELAY)
+                            viewModel.updateInputBarText("")
+                        }
+                    },
+                    enabled = chatUIState.canSend()
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_send),
+                        contentDescription = stringResource(R.string.assistant_screen_send_message),
+                        tint = if (chatUIState.canSend()) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            colorResource(
+                                R.color.disabled_text
+                            )
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Suppress("LongMethod")
+@Composable
+private fun OverlayState(state: ScreenOverlayState?, activity: Activity, viewModel: AssistantViewModel) {
+    state?.let {
+        when (state) {
+            is ScreenOverlayState.DeleteTask -> {
+                SimpleAlertDialog(
+                    title = stringResource(id = R.string.assistant_screen_delete_task_alert_dialog_title),
+                    description = stringResource(id = R.string.assistant_screen_delete_task_alert_dialog_description),
+                    onDismiss = { viewModel.updateScreenOverlayState(null) },
+                    onComplete = { viewModel.deleteTask(state.id) }
+                )
+            }
+
+            is ScreenOverlayState.TaskActions -> {
+                val actions = state.getActions(activity, onDeleteCompleted = { deleteTask ->
+                    viewModel.updateScreenOverlayState(deleteTask)
+                })
+
+                MoreActionsBottomSheet(
+                    title = state.task.getInputTitle(),
+                    actions = actions,
+                    onDismiss = { viewModel.updateScreenOverlayState(null) }
+                )
+            }
+
+            is ScreenOverlayState.TaskTypes -> {
+                TaskSelectionAlertDialog(state.taskTypes, onDismiss = {
+                    viewModel.updateScreenOverlayState(null)
+                }, onConfirm = {
+                    viewModel.selectTaskType(it)
+                    viewModel.updateInputBarText(state.copiedText)
+
+                    if (it.isTranslate()) {
+                        viewModel.updateTranslationTaskState(true)
+                        viewModel.updateScreenState(AssistantScreenState.Translation(null))
+                    }
+                })
+            }
+        }
+    }
+}
+
+@Composable
+private fun TaskContent(
+    paddingValues: PaddingValues,
+    taskList: List<Task>,
+    viewModel: AssistantViewModel,
+    capability: OCCapability
+) {
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(paddingValues)
+            .padding(12.dp),
+        verticalArrangement = Arrangement.Top,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        items(taskList, key = { it.id }) { task ->
+            TaskView(
+                task,
+                viewModel,
+                capability,
+                showTaskActions = {
+                    val newState = ScreenOverlayState.TaskActions(task)
+                    viewModel.updateScreenOverlayState(newState)
+                }
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+    }
+}
+
+@Composable
+private fun EmptyContent(paddingValues: PaddingValues, iconId: Int?, descriptionId: Int?, titleId: Int?) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(paddingValues)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        iconId?.let {
+            Image(
+                painter = painterResource(id = iconId),
+                modifier = Modifier.size(32.dp),
+                colorFilter = ColorFilter.tint(color = colorResource(R.color.text_color)),
+                contentDescription = null
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        titleId?.let {
+            Text(
+                text = stringResource(titleId),
+                style = MaterialTheme.typography.headlineSmall,
+                textAlign = TextAlign.Center,
+                color = colorResource(R.color.text_color)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        descriptionId?.let {
+            Text(
+                text = stringResource(descriptionId),
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center,
+                color = colorResource(R.color.text_color)
+            )
+        }
+    }
+}
+
+@Suppress("MagicNumber")
+@Composable
+@Preview
+private fun AssistantScreenPreview() {
+    MaterialTheme(
+        content = {
+            AssistantScreen(
+                composeViewModel = ComposeViewModel(),
+                conversationViewModel = getMockConversationViewModel(),
+                viewModel = getMockAssistantViewModel(false),
+                chatViewModel = ChatViewModel(MockAssistantRemoteRepository()),
+                activity = ComposeActivity(),
+                capability = OCCapability().apply {
+                    versionMayor = 30
+                }
+            )
+        }
+    )
+}
+
+@Suppress("MagicNumber")
+@Composable
+@Preview
+private fun AssistantEmptyScreenPreview() {
+    MaterialTheme(
+        content = {
+            AssistantScreen(
+                composeViewModel = ComposeViewModel(),
+                conversationViewModel = getMockConversationViewModel(),
+                viewModel = getMockAssistantViewModel(true),
+                chatViewModel = ChatViewModel(MockAssistantRemoteRepository()),
+                activity = ComposeActivity(),
+                capability = OCCapability().apply {
+                    versionMayor = 30
+                }
+            )
+        }
+    )
+}
+
+private fun getMockConversationViewModel(): ConversationViewModel {
+    val mockRemoteRepository = MockConversationRemoteRepository()
+    return ConversationViewModel(
+        remoteRepository = mockRemoteRepository
+    )
+}
+
+fun getMockAssistantViewModel(giveEmptyTasks: Boolean): AssistantViewModel {
+    val mockLocalRepository = MockAssistantLocalRepository()
+    val mockRemoteRepository = MockAssistantRemoteRepository(giveEmptyTasks)
+    return AssistantViewModel(
+        accountName = "test:localhost",
+        remoteRepository = mockRemoteRepository,
+        localRepository = mockLocalRepository,
+        sessionIdArg = null
+    )
+}

@@ -1,25 +1,11 @@
 /*
- * Nextcloud SingleSignOn
+ * Nextcloud - Android Client
  *
- * @author David Luhmer
- * Copyright (C) 2019 David Luhmer
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2019 David Luhmer <david-dev@live.de>
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  *
  * More information here: https://github.com/abeluck/android-streams-ipc
  */
-
 package com.nextcloud.android.sso;
 
 import android.accounts.Account;
@@ -57,6 +43,7 @@ import org.apache.commons.httpclient.methods.RequestEntity;
 import org.apache.commons.httpclient.methods.StringRequestEntity;
 import org.apache.jackrabbit.webdav.DavConstants;
 import org.apache.jackrabbit.webdav.client.methods.MkColMethod;
+import org.apache.jackrabbit.webdav.client.methods.MoveMethod;
 import org.apache.jackrabbit.webdav.client.methods.PropFindMethod;
 import org.apache.jackrabbit.webdav.property.DavPropertyNameSet;
 
@@ -294,6 +281,15 @@ public class InputStreamBinder extends IInputStreamService.Stub {
                 method = new DeleteMethod(requestUrl);
                 break;
 
+            case "MOVE":
+                String destUrl = request.getAdditionalParameter(NextcloudRequest.ADDITIONAL_PARAMETER_MOVE_DESTINATION);
+                boolean overwrite =
+                    "true".equalsIgnoreCase(
+                        request.getAdditionalParameter(NextcloudRequest.ADDITIONAL_PARAMETER_MOVE_OVERWRITE)
+                    );
+                method = new MoveMethod(requestUrl, destUrl, overwrite);
+                break;
+
             case "PROPFIND":
                 method = new NCPropFindMethod(requestUrl, DavConstants.PROPFIND_ALL_PROP, DavConstants.DEPTH_1);
                 if (request.getRequestBody() != null) {
@@ -457,16 +453,23 @@ public class InputStreamBinder extends IInputStreamService.Stub {
     }
 
     private boolean isValid(NextcloudRequest request) {
-        String callingPackageName = context.getPackageManager().getNameForUid(Binder.getCallingUid());
+        String[] callingPackageNames = context.getPackageManager().getPackagesForUid(Binder.getCallingUid());
 
         SharedPreferences sharedPreferences = context.getSharedPreferences(SSO_SHARED_PREFERENCE,
                                                                            Context.MODE_PRIVATE);
-        String hash = sharedPreferences.getString(callingPackageName + DELIMITER + request.getAccountName(), "");
-        return validateToken(hash, request.getToken());
+        for (String callingPackageName : callingPackageNames) {
+            String hash = sharedPreferences.getString(callingPackageName + DELIMITER + request.getAccountName(), "");
+            if (hash.isEmpty())
+                continue;
+            if (validateToken(hash, request.getToken())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean validateToken(String hash, String token) {
-        if (hash.isEmpty() || !hash.contains("$")) {
+        if (!hash.contains("$")) {
             throw new IllegalStateException(EXCEPTION_INVALID_TOKEN);
         }
 
@@ -509,12 +512,15 @@ public class InputStreamBinder extends IInputStreamService.Stub {
 
     @VisibleForTesting
     public static NameValuePair[] convertMapToNVP(Map<String, String> map) {
-        NameValuePair[] nvp = new NameValuePair[map.size()];
+        final var nvp = new NameValuePair[map.size()];
         int i = 0;
-        for (String key : map.keySet()) {
-            nvp[i] = new NameValuePair(key, map.get(key));
+
+        for (Map.Entry<String, String> entry : map.entrySet()) {
+            final var nameValuePair = new NameValuePair(entry.getKey(), entry.getValue());
+            nvp[i] = nameValuePair;
             i++;
         }
+
         return nvp;
     }
 

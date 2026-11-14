@@ -1,38 +1,33 @@
 /*
+ * Nextcloud - Android Client
  *
- * Nextcloud Android client application
- *
- * @author Tobias Kaminsky
- * Copyright (C) 2020 Tobias Kaminsky
- * Copyright (C) 2020 Nextcloud GmbH
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2020 Tobias Kaminsky <tobias@kaminsky.me>
+ * SPDX-FileCopyrightText: 2020 Nextcloud GmbH
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.ui.adapter
 
 import android.view.View
 import androidx.recyclerview.widget.RecyclerView
 import com.owncloud.android.databinding.FileDetailsShareSecureFileDropAddNewItemBinding
+import com.owncloud.android.utils.theme.ViewThemeUtils
 
-internal class NewSecureFileDropViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+class NewSecureFileDropViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
     private var binding: FileDetailsShareSecureFileDropAddNewItemBinding? = null
+    private var viewThemeUtils: ViewThemeUtils? = null
 
-    constructor(binding: FileDetailsShareSecureFileDropAddNewItemBinding) : this(binding.root) {
+    constructor(
+        binding: FileDetailsShareSecureFileDropAddNewItemBinding,
+        viewThemeUtils: ViewThemeUtils
+    ) : this(binding.root) {
         this.binding = binding
+        this.viewThemeUtils = viewThemeUtils
     }
 
     fun bind(listener: ShareeListAdapterListener) {
-        binding!!.addNewSecureFileDrop.setOnClickListener { v: View? -> listener.createSecureFileDrop() }
+        binding?.addPublicShare?.let {
+            it.setOnClickListener { listener.createSecureFileDrop() }
+            viewThemeUtils?.material?.colorMaterialButtonPrimaryTonal(it)
+        }
     }
 }

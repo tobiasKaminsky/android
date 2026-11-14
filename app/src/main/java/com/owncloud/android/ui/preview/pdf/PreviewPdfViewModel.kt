@@ -1,24 +1,10 @@
 /*
- * Nextcloud Android client application
+ * Nextcloud - Android Client
  *
- * @author Álvaro Brey Vilas
- * Copyright (C) 2022 Álvaro Brey Vilas
- * Copyright (C) 2022 Nextcloud GmbH
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2022 Álvaro Brey <alvaro@alvarobrey.com>
+ * SPDX-FileCopyrightText: 2022 Nextcloud GmbH
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
-
 package com.owncloud.android.ui.preview.pdf
 
 import android.graphics.Bitmap
@@ -37,10 +23,6 @@ import javax.inject.Inject
 
 class PreviewPdfViewModel @Inject constructor(val appPreferences: AppPreferences) : ViewModel() {
 
-    companion object {
-        private const val SHOW_ZOOM_TIP_TIMES = 3
-    }
-
     private var _pdfRenderer = MutableLiveData<PdfRenderer>()
     val pdfRenderer: LiveData<PdfRenderer>
         get() = _pdfRenderer
@@ -49,12 +31,7 @@ class PreviewPdfViewModel @Inject constructor(val appPreferences: AppPreferences
     val previewImagePath: LiveData<String>
         get() = _previewImagePath
 
-    private var _showZoomTip = MutableLiveData<Boolean>()
-    val shouldShowZoomTip: LiveData<Boolean>
-        get() = _showZoomTip
-
     override fun onCleared() {
-        super.onCleared()
         closeRenderer()
     }
 
@@ -73,9 +50,6 @@ class PreviewPdfViewModel @Inject constructor(val appPreferences: AppPreferences
         closeRenderer()
         _pdfRenderer.value =
             PdfRenderer(ParcelFileDescriptor.open(File(file.storagePath), ParcelFileDescriptor.MODE_READ_ONLY))
-        if (appPreferences.pdfZoomTipShownCount < SHOW_ZOOM_TIP_TIMES) {
-            _showZoomTip.value = true
-        }
     }
 
     fun onClickPage(page: Bitmap) {
@@ -85,10 +59,5 @@ class PreviewPdfViewModel @Inject constructor(val appPreferences: AppPreferences
         outStream.close()
 
         _previewImagePath.value = file.path
-    }
-
-    fun onZoomTipShown() {
-        appPreferences.pdfZoomTipShownCount++
-        _showZoomTip.value = false
     }
 }

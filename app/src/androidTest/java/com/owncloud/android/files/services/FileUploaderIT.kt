@@ -1,513 +1,203 @@
 /*
+ * Nextcloud - Android Client
  *
- * Nextcloud Android client application
- *
- * @author Tobias Kaminsky
- * Copyright (C) 2020 Tobias Kaminsky
- * Copyright (C) 2020 Nextcloud GmbH
- * Copyright (C) 2020 Chris Narkiewicz <hello@ezaquarii.com>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2026 Alper Ozturk <alper.ozturk@nextcloud.com>
+ * SPDX-FileCopyrightText: 2020 Tobias Kaminsky <tobias@kaminsky.me>
+ * SPDX-FileCopyrightText: 2020 Chris Narkiewicz <hello@ezaquarii.com>
+ * SPDX-FileCopyrightText: 2020 Nextcloud GmbH
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.files.services
 
-import com.nextcloud.client.account.UserAccountManager
 import com.nextcloud.client.account.UserAccountManagerImpl
-import com.nextcloud.client.device.BatteryStatus
-import com.nextcloud.client.device.PowerManagementService
-import com.nextcloud.client.network.Connectivity
-import com.nextcloud.client.network.ConnectivityService
+import com.nextcloud.client.jobs.upload.FileUploadWorker
+import com.nextcloud.utils.PowerManagementFactory
+import com.nextcloud.utils.extensions.getRemotePathForConflictResolution
+import com.nextcloud.utils.extensions.isTheSameAs
 import com.owncloud.android.AbstractOnServerIT
 import com.owncloud.android.datamodel.OCFile
 import com.owncloud.android.datamodel.UploadsStorageManager
 import com.owncloud.android.db.OCUpload
-import com.owncloud.android.lib.common.operations.OperationCancelledException
 import com.owncloud.android.lib.resources.files.ReadFileRemoteOperation
 import com.owncloud.android.lib.resources.files.model.RemoteFile
 import com.owncloud.android.operations.UploadFileOperation
-import junit.framework.Assert.assertEquals
-import junit.framework.Assert.assertFalse
-import junit.framework.Assert.assertTrue
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.io.File
 
-abstract class FileUploaderIT : AbstractOnServerIT() {
-    var uploadsStorageManager: UploadsStorageManager? = null
+class FileUploaderIT : AbstractOnServerIT() {
 
-    val connectivityServiceMock: ConnectivityService = object : ConnectivityService {
-        override fun isInternetWalled(): Boolean = false
-        override fun getConnectivity(): Connectivity = Connectivity.CONNECTED_WIFI
-    }
+    private lateinit var uploadsStorageManager: UploadsStorageManager
 
-    private val powerManagementServiceMock: PowerManagementService = object : PowerManagementService {
-        override val isPowerSavingEnabled: Boolean
-            get() = false
-
-        override val isPowerSavingExclusionAvailable: Boolean
-            get() = false
-
-        override val battery: BatteryStatus
-            get() = BatteryStatus()
-    }
+    private val powerManagementServiceMock = PowerManagementFactory.mock
 
     @Before
     fun setUp() {
-        val contentResolver = targetContext.contentResolver
-        val accountManager: UserAccountManager = UserAccountManagerImpl.fromContext(targetContext)
-        uploadsStorageManager = UploadsStorageManager(accountManager, contentResolver)
+        val accountManager = UserAccountManagerImpl.fromContext(targetContext)
+        uploadsStorageManager = UploadsStorageManager(accountManager, targetContext.contentResolver)
     }
 
-    /**
-     * uploads a file, overwrites it with an empty one, check if overwritten
-     */
-    // disabled, flaky test
-    // @Test
-    // fun testKeepLocalAndOverwriteRemote() {
-    //     val file = getDummyFile("chunkedFile.txt")
-    //     val ocUpload = OCUpload(file.absolutePath, "/testFile.txt", account.name)
-    //
-    //     assertTrue(
-    //         UploadFileOperation(
-    //             uploadsStorageManager,
-    //             connectivityServiceMock,
-    //             powerManagementServiceMock,
-    //             user,
-    //             null,
-    //             ocUpload,
-    //             FileUploader.NameCollisionPolicy.DEFAULT,
-    //             FileUploader.LOCAL_BEHAVIOUR_COPY,
-    //             targetContext,
-    //             false,
-    //             false
-    //         )
-    //             .setRemoteFolderToBeCreated()
-    //             .execute(client, storageManager)
-    //             .isSuccess
-    //     )
-    //
-    //     val result = ReadFileRemoteOperation("/testFile.txt").execute(client)
-    //     assertTrue(result.isSuccess)
-    //
-    //     assertEquals(file.length(), (result.data[0] as RemoteFile).length)
-    //
-    //     val ocUpload2 = OCUpload(getDummyFile("empty.txt").absolutePath, "/testFile.txt", account.name)
-    //
-    //     assertTrue(
-    //         UploadFileOperation(
-    //             uploadsStorageManager,
-    //             connectivityServiceMock,
-    //             powerManagementServiceMock,
-    //             user,
-    //             null,
-    //             ocUpload2,
-    //             FileUploader.NameCollisionPolicy.OVERWRITE,
-    //             FileUploader.LOCAL_BEHAVIOUR_COPY,
-    //             targetContext,
-    //             false,
-    //             false
-    //         )
-    //             .execute(client, storageManager)
-    //             .isSuccess
-    //     )
-    //
-    //     val result2 = ReadFileRemoteOperation("/testFile.txt").execute(client)
-    //     assertTrue(result2.isSuccess)
-    //
-    //     assertEquals(0, (result2.data[0] as RemoteFile).length)
-    // }
-
-    /**
-     * uploads a file, overwrites it with an empty one, check if overwritten
-     */
     @Test
-    fun testKeepLocalAndOverwriteRemoteStatic() {
-        val file = getDummyFile("chunkedFile.txt")
+    fun uploadWithOverwritePolicyReplacesRemoteFile() {
+        val originalFile = getDummyFile(CHUNKED_FILE)
+        uploadOriginalFile(originalFile)
 
-        FileUploader.uploadNewFile(
-            targetContext,
-            user,
-            file.absolutePath,
-            "/testFile.txt",
-            FileUploader.LOCAL_BEHAVIOUR_COPY,
-            null,
-            true,
-            UploadFileOperation.CREATED_BY_USER,
-            false,
-            false,
+        val replacement = getDummyFile(EMPTY_FILE)
+        val result = uploadOperation(replacement, NameCollisionPolicy.OVERWRITE).execute(client)
+        assertTrue(result.toString(), result.isSuccess)
+
+        assertRemoteFileLength(REMOTE_PATH, EMPTY_LENGTH)
+    }
+
+    @Test
+    fun uploadWithRenamePolicyKeepsBothFiles() {
+        val originalFile = getDummyFile(CHUNKED_FILE)
+        uploadOriginalFile(originalFile)
+
+        val renamedFile = getDummyFile(EMPTY_FILE)
+        var renameListenerTriggered = false
+        val operation = uploadOperation(renamedFile, NameCollisionPolicy.RENAME)
+            .addRenameUploadListener { renameListenerTriggered = true }
+        assertTrue(operation.execute(client).isSuccess)
+
+        assertRemoteFileLength(REMOTE_PATH, originalFile.length())
+        assertRemoteFileLength(REMOTE_PATH_RENAMED, renamedFile.length())
+        assertTrue(renameListenerTriggered)
+    }
+
+    @Test
+    fun uploadWithRenamePolicyKeepsBothFilesForNonEmptyOriginal() {
+        val originalFile = getDummyFile(NON_EMPTY_FILE)
+        uploadOriginalFile(originalFile)
+
+        val renamedFile = getDummyFile(EMPTY_FILE)
+        assertTrue(uploadOperation(renamedFile, NameCollisionPolicy.RENAME).execute(client).isSuccess)
+
+        assertRemoteFileLength(REMOTE_PATH, originalFile.length())
+        assertRemoteFileLength(REMOTE_PATH_RENAMED, renamedFile.length())
+    }
+
+    @Test
+    fun uploadWithSkipPolicyKeepsRemoteFileUnchanged() {
+        val originalFile = getDummyFile(CHUNKED_FILE)
+        uploadOriginalFile(originalFile)
+
+        val skippedFile = getDummyFile(EMPTY_FILE)
+        val operation = uploadOperation(skippedFile, NameCollisionPolicy.SKIP)
+        assertTrue(operation.execute(client).isSuccess)
+        assertTrue(operation.wasSkipped())
+
+        assertRemoteFileLength(REMOTE_PATH, originalFile.length())
+    }
+
+    @Test
+    fun uploadWithSkipPolicyUploadsWhenNoRemoteFileExists() {
+        val originalFile = getDummyFile(CHUNKED_FILE)
+        val operation = uploadOperation(originalFile, NameCollisionPolicy.SKIP).setRemoteFolderToBeCreated()
+        assertTrue(operation.execute(client).isSuccess)
+        assertFalse(operation.wasSkipped())
+
+        assertRemoteFileLength(REMOTE_PATH, originalFile.length())
+
+        val skippedFile = getDummyFile(EMPTY_FILE)
+        val skippedOperation = uploadOperation(skippedFile, NameCollisionPolicy.SKIP)
+        assertTrue(skippedOperation.execute(client).isSuccess)
+        assertTrue(skippedOperation.wasSkipped())
+
+        assertRemoteFileLength(REMOTE_PATH, originalFile.length())
+    }
+
+    @Test
+    fun uploadAndCheckFileIsTheSame() {
+        val filename = NON_EMPTY_FILE
+        val remotePath = OCFile.PATH_SEPARATOR + filename
+
+        // Upload file
+        val originalFile = getDummyFile(filename)
+        val operation = uploadOperation(
+            originalFile,
+            NameCollisionPolicy.DEFAULT,
+            remotePath
+        ).setRemoteFolderToBeCreated()
+        assertTrue(operation.execute(client).isSuccess)
+
+        // Check file metadata against remote one
+        val ocFile = storageManager.getFileByRemotePath(remotePath)
+        assertTrue(ocFile.isTheSameAs(originalFile))
+    }
+
+    @Test
+    fun uploadAndCheckFileIsNotTheSame() {
+        val filename = NON_EMPTY_FILE
+
+        // Upload file
+        val originalFile = getDummyFile(filename)
+        val operation = uploadOperation(
+            originalFile,
             NameCollisionPolicy.DEFAULT
-        )
+        ).setRemoteFolderToBeCreated()
+        assertTrue(operation.execute(client).isSuccess)
 
-        longSleep()
-
-        val result = ReadFileRemoteOperation("/testFile.txt").execute(client)
-        assertTrue(result.isSuccess)
-
-        assertEquals(file.length(), (result.data[0] as RemoteFile).length)
-
-        val ocFile2 = OCFile("/testFile.txt")
-        ocFile2.storagePath = getDummyFile("empty.txt").absolutePath
-
-        FileUploader.uploadUpdateFile(
-            targetContext,
-            user,
-            ocFile2,
-            FileUploader.LOCAL_BEHAVIOUR_COPY,
-            NameCollisionPolicy.OVERWRITE
-        )
-
-        shortSleep()
-
-        val result2 = ReadFileRemoteOperation("/testFile.txt").execute(client)
-        assertTrue(result2.isSuccess)
-
-        assertEquals(0, (result2.data[0] as RemoteFile).length)
+        // Check file metadata against remote one
+        val ocFile = storageManager.getFileByRemotePath(REMOTE_PATH)
+        assertFalse(ocFile.isTheSameAs(originalFile))
     }
 
-    /**
-     * uploads a file, uploads another one with automatically (2) added, check
-     */
     @Test
-    fun testKeepBoth() {
-        var renameListenerWasTriggered = false
-
-        val file = getDummyFile("chunkedFile.txt")
-        val ocUpload = OCUpload(file.absolutePath, "/testFile.txt", account.name)
-
-        assertTrue(
-            UploadFileOperation(
-                uploadsStorageManager,
-                connectivityServiceMock,
-                powerManagementServiceMock,
-                user,
-                null,
-                ocUpload,
-                NameCollisionPolicy.DEFAULT,
-                FileUploader.LOCAL_BEHAVIOUR_COPY,
-                targetContext,
-                false,
-                false,
-                storageManager
-            )
-                .setRemoteFolderToBeCreated()
-                .execute(client)
-                .isSuccess
+    fun uploadAndCheckConflictingName() {
+        val originalFile = getDummyFile(EMPTY_FILE)
+        uploadOriginalFile(originalFile)
+        val newPath = getRemotePathForConflictResolution(
+            client,
+            OCFile.PATH_SEPARATOR,
+            REMOTE_FILE
         )
-
-        val result = ReadFileRemoteOperation("/testFile.txt").execute(client)
-        assertTrue(result.isSuccess)
-
-        assertEquals(file.length(), (result.data[0] as RemoteFile).length)
-
-        val file2 = getDummyFile("empty.txt")
-        val ocUpload2 = OCUpload(file2.absolutePath, "/testFile.txt", account.name)
-
-        assertTrue(
-            UploadFileOperation(
-                uploadsStorageManager,
-                connectivityServiceMock,
-                powerManagementServiceMock,
-                user,
-                null,
-                ocUpload2,
-                NameCollisionPolicy.RENAME,
-                FileUploader.LOCAL_BEHAVIOUR_COPY,
-                targetContext,
-                false,
-                false,
-                storageManager
-            )
-                .addRenameUploadListener {
-                    renameListenerWasTriggered = true
-                }
-                .execute(client)
-                .isSuccess
-        )
-
-        val result2 = ReadFileRemoteOperation("/testFile.txt").execute(client)
-        assertTrue(result2.isSuccess)
-
-        assertEquals(file.length(), (result2.data[0] as RemoteFile).length)
-
-        val result3 = ReadFileRemoteOperation("/testFile (2).txt").execute(client)
-        assertTrue(result3.isSuccess)
-
-        assertEquals(file2.length(), (result3.data[0] as RemoteFile).length)
-        assertTrue(renameListenerWasTriggered)
+        assertEquals(newPath, "${OCFile.PATH_SEPARATOR}$REMOTE_FILE_NAME (1).$REMOTE_FILE_EXTENSION")
     }
 
-    /**
-     * uploads a file, uploads another one with automatically (2) added, check
-     */
-    @Test
-    fun testKeepBothStatic() {
-        val file = getDummyFile("nonEmpty.txt")
-
-        FileUploader.uploadNewFile(
-            targetContext,
-            user,
-            file.absolutePath,
-            "/testFile.txt",
-            FileUploader.LOCAL_BEHAVIOUR_COPY,
-            null,
-            true,
-            UploadFileOperation.CREATED_BY_USER,
-            false,
-            false,
-            NameCollisionPolicy.DEFAULT
-        )
-
-        longSleep()
-
-        val result = ReadFileRemoteOperation("/testFile.txt").execute(client)
-        assertTrue(result.isSuccess)
-
-        assertEquals(file.length(), (result.data[0] as RemoteFile).length)
-
-        val ocFile2 = OCFile("/testFile.txt")
-        ocFile2.storagePath = getDummyFile("empty.txt").absolutePath
-
-        FileUploader.uploadUpdateFile(
-            targetContext,
-            user,
-            ocFile2,
-            FileUploader.LOCAL_BEHAVIOUR_COPY,
-            NameCollisionPolicy.RENAME
-        )
-
-        shortSleep()
-
-        val result2 = ReadFileRemoteOperation("/testFile.txt").execute(client)
-        assertTrue(result2.isSuccess)
-
-        assertEquals(file.length(), (result2.data[0] as RemoteFile).length)
-
-        val result3 = ReadFileRemoteOperation("/testFile (2).txt").execute(client)
-        assertTrue(result3.isSuccess)
-
-        assertEquals(ocFile2.fileLength, (result3.data[0] as RemoteFile).length)
+    private fun uploadOriginalFile(originalFile: File) {
+        val operation = uploadOperation(originalFile, NameCollisionPolicy.DEFAULT).setRemoteFolderToBeCreated()
+        assertTrue(operation.execute(client).isSuccess)
+        assertRemoteFileLength(REMOTE_PATH, originalFile.length())
     }
 
-    /**
-     * uploads a file with "keep server" option set, so do nothing
-     */
-    @Test
-    fun testKeepServer() {
-        val file = getDummyFile("chunkedFile.txt")
-        val ocUpload = OCUpload(file.absolutePath, "/testFile.txt", account.name)
+    private fun uploadOperation(
+        localFile: File,
+        nameCollisionPolicy: NameCollisionPolicy,
+        remotePath: String = REMOTE_PATH
+    ) = UploadFileOperation(
+        uploadsStorageManager,
+        connectivityServiceMock,
+        powerManagementServiceMock,
+        user,
+        null,
+        OCUpload(localFile.absolutePath, remotePath, account.name),
+        nameCollisionPolicy,
+        FileUploadWorker.LOCAL_BEHAVIOUR_COPY,
+        targetContext,
+        false,
+        false,
+        storageManager
+    )
 
-        assertTrue(
-            UploadFileOperation(
-                uploadsStorageManager,
-                connectivityServiceMock,
-                powerManagementServiceMock,
-                user,
-                null,
-                ocUpload,
-                NameCollisionPolicy.DEFAULT,
-                FileUploader.LOCAL_BEHAVIOUR_COPY,
-                targetContext,
-                false,
-                false,
-                storageManager
-            )
-                .setRemoteFolderToBeCreated()
-                .execute(client)
-                .isSuccess
-        )
-
-        val result = ReadFileRemoteOperation("/testFile.txt").execute(client)
+    private fun assertRemoteFileLength(remotePath: String, expectedLength: Long) {
+        val result = ReadFileRemoteOperation(remotePath).execute(client)
         assertTrue(result.isSuccess)
-
-        assertEquals(file.length(), (result.data[0] as RemoteFile).length)
-
-        val ocUpload2 = OCUpload(getDummyFile("empty.txt").absolutePath, "/testFile.txt", account.name)
-
-        assertFalse(
-            UploadFileOperation(
-                uploadsStorageManager,
-                connectivityServiceMock,
-                powerManagementServiceMock,
-                user,
-                null,
-                ocUpload2,
-                NameCollisionPolicy.CANCEL,
-                FileUploader.LOCAL_BEHAVIOUR_COPY,
-                targetContext,
-                false,
-                false,
-                storageManager
-            )
-                .execute(client).isSuccess
-        )
-
-        val result2 = ReadFileRemoteOperation("/testFile.txt").execute(client)
-        assertTrue(result2.isSuccess)
-
-        assertEquals(file.length(), (result2.data[0] as RemoteFile).length)
+        assertEquals(expectedLength, (result.data[0] as RemoteFile).length)
     }
 
-    /**
-     * uploads a file with "keep server" option set, so do nothing
-     */
-    @Test
-    fun testKeepServerStatic() {
-        val file = getDummyFile("chunkedFile.txt")
-
-        FileUploader.uploadNewFile(
-            targetContext,
-            user,
-            file.absolutePath,
-            "/testFile.txt",
-            FileUploader.LOCAL_BEHAVIOUR_COPY,
-            null,
-            true,
-            UploadFileOperation.CREATED_BY_USER,
-            false,
-            false,
-            NameCollisionPolicy.DEFAULT
-        )
-
-        longSleep()
-
-        val result = ReadFileRemoteOperation("/testFile.txt").execute(client)
-        assertTrue(result.isSuccess)
-
-        assertEquals(file.length(), (result.data[0] as RemoteFile).length)
-
-        val ocFile2 = OCFile("/testFile.txt")
-        ocFile2.storagePath = getDummyFile("empty.txt").absolutePath
-
-        FileUploader.uploadUpdateFile(
-            targetContext,
-            user,
-            ocFile2,
-            FileUploader.LOCAL_BEHAVIOUR_COPY,
-            NameCollisionPolicy.CANCEL
-        )
-
-        shortSleep()
-
-        val result2 = ReadFileRemoteOperation("/testFile.txt").execute(client)
-        assertTrue(result2.isSuccess)
-
-        assertEquals(file.length(), (result2.data[0] as RemoteFile).length)
-    }
-
-    /**
-     * uploads a file with "skip if exists" option set, so do nothing if file exists
-     */
-    @Test
-    fun testCancelServer() {
-        val file = getDummyFile("chunkedFile.txt")
-        val ocUpload = OCUpload(file.absolutePath, "/testFile.txt", account.name)
-
-        assertTrue(
-            UploadFileOperation(
-                uploadsStorageManager,
-                connectivityServiceMock,
-                powerManagementServiceMock,
-                user,
-                null,
-                ocUpload,
-                NameCollisionPolicy.CANCEL,
-                FileUploader.LOCAL_BEHAVIOUR_COPY,
-                targetContext,
-                false,
-                false,
-                storageManager
-            )
-                .setRemoteFolderToBeCreated()
-                .execute(client)
-                .isSuccess
-        )
-
-        val result = ReadFileRemoteOperation("/testFile.txt").execute(client)
-        assertTrue(result.isSuccess)
-
-        assertEquals(file.length(), (result.data[0] as RemoteFile).length)
-
-        val ocUpload2 = OCUpload(getDummyFile("empty.txt").absolutePath, "/testFile.txt", account.name)
-
-        val uploadResult = UploadFileOperation(
-            uploadsStorageManager,
-            connectivityServiceMock,
-            powerManagementServiceMock,
-            user,
-            null,
-            ocUpload2,
-            NameCollisionPolicy.CANCEL,
-            FileUploader.LOCAL_BEHAVIOUR_COPY,
-            targetContext,
-            false,
-            false,
-            storageManager
-        )
-            .execute(client)
-
-        assertFalse(uploadResult.isSuccess)
-        assertTrue(uploadResult.exception is OperationCancelledException)
-
-        val result2 = ReadFileRemoteOperation("/testFile.txt").execute(client)
-        assertTrue(result2.isSuccess)
-
-        assertEquals(file.length(), (result2.data[0] as RemoteFile).length)
-    }
-
-    /**
-     * uploads a file with "skip if exists" option set, so do nothing if file exists
-     */
-    @Test
-    fun testKeepCancelStatic() {
-        val file = getDummyFile("chunkedFile.txt")
-
-        FileUploader.uploadNewFile(
-            targetContext,
-            user,
-            file.absolutePath,
-            "/testFile.txt",
-            FileUploader.LOCAL_BEHAVIOUR_COPY,
-            null,
-            true,
-            UploadFileOperation.CREATED_BY_USER,
-            false,
-            false,
-            NameCollisionPolicy.DEFAULT
-        )
-
-        longSleep()
-
-        val result = ReadFileRemoteOperation("/testFile.txt").execute(client)
-        assertTrue(result.isSuccess)
-
-        assertEquals(file.length(), (result.data[0] as RemoteFile).length)
-
-        val ocFile2 = OCFile("/testFile.txt")
-        ocFile2.storagePath = getDummyFile("empty.txt").absolutePath
-
-        FileUploader.uploadUpdateFile(
-            targetContext,
-            user,
-            ocFile2,
-            FileUploader.LOCAL_BEHAVIOUR_COPY,
-            NameCollisionPolicy.CANCEL
-        )
-
-        shortSleep()
-
-        val result2 = ReadFileRemoteOperation("/testFile.txt").execute(client)
-        assertTrue(result2.isSuccess)
-
-        assertEquals(file.length(), (result2.data[0] as RemoteFile).length)
+    companion object {
+        private const val REMOTE_FILE_NAME = "testFile"
+        private const val REMOTE_FILE_EXTENSION = "txt"
+        private const val REMOTE_FILE = "$REMOTE_FILE_NAME.$REMOTE_FILE_EXTENSION"
+        private const val REMOTE_PATH = "${OCFile.PATH_SEPARATOR}$REMOTE_FILE"
+        private const val REMOTE_PATH_RENAMED = "/testFile (2).txt"
+        private const val CHUNKED_FILE = "chunkedFile.txt"
+        private const val NON_EMPTY_FILE = "nonEmpty.txt"
+        private const val EMPTY_FILE = "empty.txt"
+        private const val EMPTY_LENGTH = 0L
     }
 }

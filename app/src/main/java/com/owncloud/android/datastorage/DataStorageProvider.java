@@ -5,18 +5,7 @@
  *   Copyright (C) 2016 Nextcloud
  *   Copyright (C) 2016 Bartosz Przybylski
  *
- *   This program is free software; you can redistribute it and/or
- *   modify it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE
- *   License as published by the Free Software Foundation; either
- *   version 3 of the License, or any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU AFFERO GENERAL PUBLIC LICENSE for more details.
- *
- *   You should have received a copy of the GNU Affero General Public
- *   License along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 
 package com.owncloud.android.datastorage;
@@ -44,14 +33,13 @@ public class DataStorageProvider {
     private DataStorageProvider() {}
 
     public StoragePoint[] getAvailableStoragePoints() {
-        if (mCachedStoragePoints.size() != 0) {
+        if (!mCachedStoragePoints.isEmpty()) {
             return mCachedStoragePoints.toArray(new StoragePoint[0]);
         }
 
-        List<String> paths = new ArrayList<>();
         StoragePoint storagePoint;
         for (File f : MainApp.getAppContext().getExternalMediaDirs()) {
-            if (f != null && !paths.contains(f.getAbsolutePath())) {
+            if (f != null) {
                 storagePoint = new StoragePoint();
                 storagePoint.setPath(f.getAbsolutePath());
                 storagePoint.setDescription(f.getAbsolutePath());
@@ -75,9 +63,7 @@ public class DataStorageProvider {
         storagePoint.setPath(MainApp.getAppContext().getFilesDir().getAbsolutePath());
         storagePoint.setPrivacyType(StoragePoint.PrivacyType.PRIVATE);
         storagePoint.setStorageType(StoragePoint.StorageType.INTERNAL);
-        if (!paths.contains(MainApp.getAppContext().getFilesDir().getAbsolutePath())) {
-            mCachedStoragePoints.add(storagePoint);
-        }
+        mCachedStoragePoints.add(storagePoint);
 
         // Add external storage directory if available.
         if (isExternalStorageWritable()) {
@@ -91,23 +77,11 @@ public class DataStorageProvider {
                 storagePoint.setDescription(externalFilesDirPath);
                 storagePoint.setPrivacyType(StoragePoint.PrivacyType.PRIVATE);
                 storagePoint.setStorageType(StoragePoint.StorageType.EXTERNAL);
-                if (!paths.contains(externalFilesDirPath)) {
-                    mCachedStoragePoints.add(storagePoint);
-                }
+                mCachedStoragePoints.add(storagePoint);
             }
         }
 
         return mCachedStoragePoints.toArray(new StoragePoint[0]);
-    }
-
-    public String getStorageDescriptionByPath(String path) {
-        for (StoragePoint s : getAvailableStoragePoints()) {
-            if (s.getPath().equals(path)) {
-                return s.getDescription();
-            }
-        }
-        // Fallback to just display complete path
-        return path;
     }
 
     /* Checks if external storage is available for read and write */

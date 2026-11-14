@@ -1,5 +1,12 @@
+/*
+ * Nextcloud - Android Client
+ *
+ * SPDX-FileCopyrightText: 2020 Chris Narkiewicz <hello@ezaquarii.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
+ */
 package com.nextcloud.client.etm.pages
 
+import android.annotation.SuppressLint
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.Menu
@@ -9,17 +16,19 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.core.view.isVisible
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.nextcloud.client.etm.EtmBaseFragment
-import com.nextcloud.client.files.downloader.DownloadRequest
-import com.nextcloud.client.files.downloader.Transfer
-import com.nextcloud.client.files.downloader.TransferManager
-import com.nextcloud.client.files.downloader.UploadRequest
+import com.nextcloud.client.files.DownloadRequest
+import com.nextcloud.client.files.UploadRequest
+import com.nextcloud.client.jobs.transfer.Transfer
+import com.nextcloud.client.jobs.transfer.TransferManager
 import com.owncloud.android.R
 import com.owncloud.android.datamodel.OCFile
 import com.owncloud.android.db.OCUpload
+import java.util.Locale
 
 class EtmFileTransferFragment : EtmBaseFragment() {
 
@@ -39,9 +48,9 @@ class EtmFileTransferFragment : EtmBaseFragment() {
             val progress = view.findViewById<TextView>(R.id.etm_transfer_progress)
             private val progressRow = view.findViewById<View>(R.id.etm_transfer_progress_row)
 
-            var progressEnabled: Boolean = progressRow.visibility == View.VISIBLE
+            var progressEnabled: Boolean = progressRow.isVisible
                 get() {
-                    return progressRow.visibility == View.VISIBLE
+                    return progressRow.isVisible
                 }
                 set(value) {
                     field = value
@@ -55,6 +64,7 @@ class EtmFileTransferFragment : EtmBaseFragment() {
 
         private var transfers = listOf<Transfer>()
 
+        @SuppressLint("NotifyDataSetChanged")
         fun setStatus(status: TransferManager.Status) {
             transfers = listOf(status.pending, status.running, status.completed).flatten().reversed()
             notifyDataSetChanged()
@@ -65,9 +75,7 @@ class EtmFileTransferFragment : EtmBaseFragment() {
             return ViewHolder(view)
         }
 
-        override fun getItemCount(): Int {
-            return transfers.size
-        }
+        override fun getItemCount(): Int = transfers.size
 
         override fun onBindViewHolder(vh: ViewHolder, position: Int) {
             val transfer = transfers[position]
@@ -90,7 +98,7 @@ class EtmFileTransferFragment : EtmBaseFragment() {
             vh.state.text = transfer.state.toString()
             if (transfer.progress >= 0) {
                 vh.progressEnabled = true
-                vh.progress.text = transfer.progress.toString()
+                vh.progress.text = String.format(Locale.getDefault(), "%d", transfer.progress)
             } else {
                 vh.progressEnabled = false
             }
@@ -131,18 +139,18 @@ class EtmFileTransferFragment : EtmBaseFragment() {
         inflater.inflate(R.menu.fragment_etm_file_transfer, menu)
     }
 
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        return when (item.itemId) {
-            R.id.etm_test_download -> {
-                scheduleTestDownload()
-                true
-            }
-            R.id.etm_test_upload -> {
-                scheduleTestUpload()
-                true
-            }
-            else -> super.onOptionsItemSelected(item)
+    override fun onOptionsItemSelected(item: MenuItem): Boolean = when (item.itemId) {
+        R.id.etm_test_download -> {
+            scheduleTestDownload()
+            true
         }
+
+        R.id.etm_test_upload -> {
+            scheduleTestUpload()
+            true
+        }
+
+        else -> super.onOptionsItemSelected(item)
     }
 
     private fun scheduleTestDownload() {

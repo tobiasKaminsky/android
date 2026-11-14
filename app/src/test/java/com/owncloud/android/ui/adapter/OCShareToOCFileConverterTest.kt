@@ -1,32 +1,45 @@
 /*
- * Nextcloud Android client application
+ * Nextcloud - Android Client
  *
- * @author Álvaro Brey Vilas
- * Copyright (C) 2022 Álvaro Brey Vilas
- * Copyright (C) 2022 Nextcloud GmbH
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2022 Álvaro Brey <alvaro@alvarobrey.com>
+ * SPDX-FileCopyrightText: 2022 Nextcloud GmbH
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
-
 package com.owncloud.android.ui.adapter
 
+import com.owncloud.android.datamodel.FileDataStorageManager
 import com.owncloud.android.lib.resources.shares.OCShare
 import com.owncloud.android.lib.resources.shares.ShareType
+import com.owncloud.android.ui.activity.ComponentsGetter
+import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Before
 import org.junit.Test
+import org.mockito.Mock
+import org.mockito.MockitoAnnotations
+import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.whenever
 
 class OCShareToOCFileConverterTest {
+
+    @Mock
+    lateinit var storageManager: FileDataStorageManager
+
+    @Mock
+    lateinit var transferServiceGetter: ComponentsGetter
+
+    private lateinit var mocks: AutoCloseable
+
+    @Before
+    fun setUpMocks() {
+        mocks = MockitoAnnotations.openMocks(this)
+        whenever(transferServiceGetter.storageManager) doReturn storageManager
+    }
+
+    @After
+    fun tearDownMocks() {
+        mocks.close()
+    }
 
     @Test
     fun testSingleOCShare() {
@@ -38,7 +51,7 @@ class OCShareToOCFileConverterTest {
                 }
         )
 
-        val result = OCShareToOCFileConverter.buildOCFilesFromShares(shares)
+        val result = OCShareToOCFileConverter.buildOCFilesFromShares(shares, storageManager)
 
         assertEquals("Wrong file list size", 1, result.size)
         val ocFile = result[0]
@@ -70,7 +83,7 @@ class OCShareToOCFileConverterTest {
                 }
         )
 
-        val result = OCShareToOCFileConverter.buildOCFilesFromShares(shares)
+        val result = OCShareToOCFileConverter.buildOCFilesFromShares(shares, storageManager)
 
         assertEquals("Wrong file list size", 1, result.size)
         val ocFile = result[0]
@@ -113,7 +126,7 @@ class OCShareToOCFileConverterTest {
                 }
         )
 
-        val result = OCShareToOCFileConverter.buildOCFilesFromShares(shares)
+        val result = OCShareToOCFileConverter.buildOCFilesFromShares(shares, storageManager)
 
         assertEquals("Wrong file list size", 2, result.size)
 

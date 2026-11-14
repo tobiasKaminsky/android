@@ -1,0 +1,416 @@
+/*
+ * Nextcloud - Android Client
+ *
+ * SPDX-FileCopyrightText: 2026 Alper Ozturk <alper.ozturk@nextcloud.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+package com.nextcloud.client.jobs.download
+
+import android.accounts.Account
+import android.accounts.AccountManager
+import android.accounts.OnAccountsUpdateListener
+import android.app.PendingIntent
+import android.content.Context
+import android.util.Pair
+import androidx.core.util.component1
+import androidx.core.util.component2
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
+import androidx.work.CoroutineWorker
+import androidx.work.ForegroundInfo
+import androidx.work.WorkerParameters
+import androidx.work.workDataOf
+import com.nextcloud.client.account.User
+import com.nextcloud.client.account.UserAccountManager
+import com.nextcloud.utils.ForegroundServiceHelper
+import com.nextcloud.utils.extensions.getPercent
+import com.owncloud.android.R
+import com.owncloud.android.datamodel.FileDataStorageManager
+import com.owncloud.android.datamodel.ForegroundServiceType
+import com.owncloud.android.datamodel.OCFile
+import com.owncloud.android.files.services.IndexedForest
+import com.owncloud.android.lib.common.OwnCloudAccount
+import com.owncloud.android.lib.common.OwnCloudClientManagerFactory
+import com.owncloud.android.lib.common.network.OnDatatransferProgressListener
+import com.owncloud.android.lib.common.operations.RemoteOperationResult
+import com.owncloud.android.lib.common.operations.RemoteOperationResult.ResultCode
+import com.owncloud.android.lib.common.utils.Log_OC
+import com.owncloud.android.operations.DownloadFileOperation
+import com.owncloud.android.operations.DownloadType
+import com.owncloud.android.utils.theme.ViewThemeUtils
+import java.util.AbstractList
+import java.util.Optional
+import java.util.Vector
+import kotlin.random.Random
+
+class FileDownloadWorker(
+    viewThemeUtils: ViewThemeUtils,
+    private val accountManager: UserAccountManager,
+    localBroadcastManager: LocalBroadcastManager,
+    private val context: Context,
+    params: WorkerParameters
+) : CoroutineWorker(context, params),
+    OnAccountsUpdateListener,
+    OnDatatransferProgressListener {
+
+    companion object {
+        private const val TAG = "🗄️" + "FileDownloadWorker"
+
+        private val pendingDownloads = IndexedForest<DownloadFileOperation>()
+
+        fun cancelOperation(accountName: String, fileId: Long) {
+            pendingDownloads.all.forEach {
+                it.value?.payload?.cancelMatchingOperation(accountName, fileId)
+            }
+        }
+
+        fun isDownloading(accountName: String, fileId: Long): Boolean = pendingDownloads.all.any {
+            it.value?.payload?.isMatching(accountName, fileId) == true
+        }
+
+        const val FILE_REMOTE_PATH = "FILE_REMOTE_PATH"
+        const val ACCOUNT_NAME = "ACCOUNT_NAME"
+        const val BEHAVIOUR = "BEHAVIOUR"
+        const val DOWNLOAD_TYPE = "DOWNLOAD_TYPE"
+        const val ACTIVITY_NAME = "ACTIVITY_NAME"
+        const val PACKAGE_NAME = "PACKAGE_NAME"
+        const val CONFLICT_UPLOAD_ID = "CONFLICT_UPLOAD_ID"
+        const val PROGRESS_PERCENT = "PROGRESS_PERCENT"
+    }
+
+    private var currentDownload: DownloadFileOperation? = null
+
+    private var conflictUploadId: Long? = null
+    private var lastPercent = 0
+
+    private val fileDownloadEventBroadcaster = FileDownloadEventBroadcaster(context, localBroadcastManager)
+    private val intents = FileDownloadIntents(context)
+
+    private var notificationManager = DownloadNotificationManager(
+        Random.nextInt(),
+        context,
+        viewThemeUtils
+    )
+
+    private var user: User? = null
+    private var currentUser = Optional.empty<User>()
+
+    private var currentUserFileStorageManager: FileDataStorageManager? = null
+    private var fileDataStorageManager: FileDataStorageManager? = null
+
+    private var downloadError: FileDownloadError? = null
+
+    override suspend fun doWork(): Result {
+        return try {
+            setUser()
+            val remotePath = inputData.keyValueMap[FILE_REMOTE_PATH] as? String? ?: return Result.failure()
+            val ocFile = fileDataStorageManager?.getFileByEncryptedRemotePath(remotePath) ?: return Result.failure()
+            val requestDownloads = getRequestDownloads(ocFile)
+            addAccountUpdateListener()
+
+            requestDownloads.forEach {
+                downloadFile(it)
+            }
+
+            downloadError?.let {
+                showDownloadErrorNotification(it)
+                notificationManager.dismissNotification()
+            }
+
+            Log_OC.d(TAG, "successfully completed")
+            Result.success()
+        } catch (t: Throwable) {
+            notificationManager.showNewNotification(context.getString(R.string.downloader_unexpected_error))
+            Log_OC.e(TAG, "exception: " + t.localizedMessage)
+            Result.failure()
+        } finally {
+            Log_OC.d(TAG, "cleanup")
+            notificationManager.dismissNotification()
+        }
+    }
+
+    override suspend fun getForegroundInfo(): ForegroundInfo {
+        val notification = notificationManager.getNotification()
+        return ForegroundServiceHelper.createWorkerForegroundInfo(
+            notificationManager.getId(),
+            notification,
+            ForegroundServiceType.DataSync
+        )
+    }
+
+    private suspend fun trySetForeground(filename: String) {
+        try {
+            val foregroundInfo = createWorkerForegroundInfo(filename)
+            setForeground(foregroundInfo)
+        } catch (e: Exception) {
+            Log_OC.w(TAG, "⚠️ Could not set foreground service: ${e.message}")
+        }
+    }
+
+    private fun createWorkerForegroundInfo(filename: String): ForegroundInfo =
+        ForegroundServiceHelper.createWorkerForegroundInfo(
+            notificationManager.getId(),
+            notificationManager.getNotification(filename),
+            ForegroundServiceType.DataSync
+        )
+
+    private fun removePendingDownload(accountName: String?) {
+        pendingDownloads.remove(accountName)
+    }
+
+    private fun getRequestDownloads(ocFile: OCFile): AbstractList<String> {
+        val files = getFiles(ocFile)
+        val downloadType = getDownloadType()
+
+        conflictUploadId = inputData.keyValueMap[CONFLICT_UPLOAD_ID] as Long?
+
+        val behaviour = inputData.keyValueMap[BEHAVIOUR] as String? ?: ""
+        val activityName = inputData.keyValueMap[ACTIVITY_NAME] as String? ?: ""
+        val packageName = inputData.keyValueMap[PACKAGE_NAME] as String? ?: ""
+
+        val requestedDownloads: AbstractList<String> = Vector()
+
+        val user = user ?: run {
+            Log_OC.e(TAG, "user cannot be null")
+            return requestedDownloads
+        }
+
+        return try {
+            files.forEach { file ->
+                val operation = DownloadFileOperation(
+                    user,
+                    file,
+                    behaviour,
+                    activityName,
+                    packageName,
+                    context,
+                    downloadType
+                )
+
+                operation.addProgressListener(this)
+                val (downloadKey, _) = pendingDownloads.putIfAbsent(
+                    user.accountName,
+                    file.remotePath,
+                    operation
+                ) ?: Pair(null, null)
+
+                downloadKey?.let {
+                    requestedDownloads.add(downloadKey)
+                }
+
+                fileDownloadEventBroadcaster.sendDownloadEnqueued(
+                    operation.user.accountName,
+                    operation.remotePath,
+                    context.packageName,
+                    operation.file.fileId,
+                    operation.user.accountName
+                )
+            }
+
+            requestedDownloads
+        } catch (e: IllegalArgumentException) {
+            Log_OC.e(TAG, "Not enough information provided in intent: " + e.message)
+            requestedDownloads
+        }
+    }
+
+    private fun setUser() {
+        val accountName = inputData.keyValueMap[ACCOUNT_NAME] as String
+        user = accountManager.getUser(accountName).get()
+        fileDataStorageManager = FileDataStorageManager(user, context.contentResolver)
+    }
+
+    private fun getFiles(file: OCFile): List<OCFile> = if (file.isFolder) {
+        fileDataStorageManager?.getAllFilesRecursivelyInsideFolder(file) ?: listOf()
+    } else {
+        listOf(file)
+    }
+
+    private fun getDownloadType(): DownloadType? {
+        val typeAsString = inputData.keyValueMap[DOWNLOAD_TYPE] as String?
+        return if (typeAsString != null) {
+            if (typeAsString == DownloadType.DOWNLOAD.toString()) {
+                DownloadType.DOWNLOAD
+            } else {
+                DownloadType.EXPORT
+            }
+        } else {
+            null
+        }
+    }
+
+    private fun addAccountUpdateListener() {
+        val am = AccountManager.get(context)
+        am.addOnAccountsUpdatedListener(this, null, false)
+    }
+
+    @Suppress("DEPRECATION")
+    private suspend fun downloadFile(downloadKey: String) {
+        currentDownload = pendingDownloads.get(downloadKey)
+
+        if (currentDownload == null) {
+            return
+        }
+
+        Log_OC.d(TAG, "downloading: $downloadKey")
+
+        val isAccountExist = accountManager.exists(currentDownload?.user?.toPlatformAccount())
+        if (!isAccountExist) {
+            removePendingDownload(currentDownload?.user?.accountName)
+            return
+        }
+
+        lastPercent = 0
+        trySetForeground(currentDownload?.file?.fileName ?: "")
+        notificationManager.run {
+            prepareForStart(currentDownload!!)
+            setContentIntent(intents.detailsIntent(currentDownload!!), PendingIntent.FLAG_IMMUTABLE)
+        }
+
+        var downloadResult: RemoteOperationResult<*>? = null
+        try {
+            val ocAccount = getOCAccountForDownload()
+            val downloadClient =
+                OwnCloudClientManagerFactory.getDefaultSingleton().getClientFor(ocAccount, context)
+
+            downloadResult = currentDownload?.execute(downloadClient)
+            if (downloadResult?.isSuccess == true && currentDownload?.downloadType === DownloadType.DOWNLOAD) {
+                getCurrentFile()?.let {
+                    FileDownloadHelper.instance().saveFile(it, currentDownload, currentUserFileStorageManager)
+                }
+            }
+        } catch (e: Exception) {
+            Log_OC.e(TAG, "exception downloading file: ", e)
+            downloadResult = RemoteOperationResult<Any?>(e)
+        } finally {
+            cleanupDownloadProcess(downloadResult)
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun getOCAccountForDownload(): OwnCloudAccount {
+        val currentDownloadAccount = currentDownload?.user?.toPlatformAccount()
+        val currentDownloadUser = accountManager.getUser(currentDownloadAccount?.name)
+        if (currentUser != currentDownloadUser) {
+            currentUser = currentDownloadUser
+            currentUserFileStorageManager = FileDataStorageManager(currentUser.get(), context.contentResolver)
+        }
+        return currentDownloadUser.get().toOwnCloudAccount()
+    }
+
+    private fun getCurrentFile(): OCFile? {
+        var file: OCFile? = currentDownload?.file?.fileId?.let { currentUserFileStorageManager?.getFileById(it) }
+
+        if (file == null) {
+            file = currentUserFileStorageManager?.getFileByDecryptedRemotePath(currentDownload?.file?.remotePath)
+        }
+
+        if (file == null) {
+            Log_OC.e(this, "Could not save " + currentDownload?.file?.remotePath)
+            return null
+        }
+
+        return file
+    }
+
+    private fun cleanupDownloadProcess(result: RemoteOperationResult<*>?) {
+        result?.let {
+            checkDownloadError(it)
+        }
+
+        pendingDownloads.removePayload(
+            currentDownload?.user?.accountName,
+            currentDownload?.remotePath
+        )
+
+        val downloadResult = result ?: RemoteOperationResult<Any?>(RuntimeException("Error downloading…"))
+
+        currentDownload?.run {
+            notifyDownloadResult(this, downloadResult)
+
+            fileDownloadEventBroadcaster.sendDownloadCompleted(
+                this,
+                downloadResult
+            )
+        }
+    }
+
+    private fun checkDownloadError(result: RemoteOperationResult<*>) {
+        if (result.isSuccess || downloadError != null) {
+            notificationManager.dismissNotification()
+            return
+        }
+
+        downloadError = if (result.isCancelled) {
+            FileDownloadError.Cancelled
+        } else {
+            FileDownloadError.Failed
+        }
+    }
+
+    private fun showDownloadErrorNotification(downloadError: FileDownloadError) {
+        val text = when (downloadError) {
+            FileDownloadError.Cancelled -> {
+                context.getString(R.string.downloader_download_canceled)
+            }
+
+            FileDownloadError.Failed -> {
+                context.getString(R.string.downloader_file_download_failed)
+            }
+        }
+
+        notificationManager.showNewNotification(text)
+    }
+
+    private fun notifyDownloadResult(download: DownloadFileOperation, downloadResult: RemoteOperationResult<*>) {
+        if (downloadResult.isCancelled) {
+            return
+        }
+
+        val needsToUpdateCredentials = (ResultCode.UNAUTHORIZED == downloadResult.code)
+        notificationManager.run {
+            prepareForResult()
+
+            if (needsToUpdateCredentials) {
+                showNewNotification(context.getString(R.string.downloader_download_failed_credentials_error))
+                setContentIntent(
+                    intents.credentialContentIntent(download.user),
+                    PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
+                )
+            } else {
+                setContentIntent(intents.detailsIntent(null), PendingIntent.FLAG_IMMUTABLE)
+            }
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    override fun onAccountsUpdated(accounts: Array<out Account>?) {
+        if (!accountManager.exists(currentDownload?.user?.toPlatformAccount())) {
+            currentDownload?.cancel()
+        }
+    }
+
+    @Suppress("MagicNumber")
+    private val minProgressUpdateInterval = 750
+    private var lastUpdateTime = 0L
+
+    @Suppress("MagicNumber")
+    override fun onTransferProgress(
+        progressRate: Long,
+        totalTransferredSoFar: Long,
+        totalToTransfer: Long,
+        filePath: String
+    ) {
+        val percent: Int = getPercent(totalTransferredSoFar, totalToTransfer)
+        val currentTime = System.currentTimeMillis()
+
+        if (percent != lastPercent && (currentTime - lastUpdateTime) >= minProgressUpdateInterval) {
+            notificationManager.run {
+                updateDownloadProgress(percent, totalToTransfer)
+            }
+            setProgressAsync(workDataOf(PROGRESS_PERCENT to percent))
+            lastUpdateTime = currentTime
+        }
+
+        lastPercent = percent
+    }
+}

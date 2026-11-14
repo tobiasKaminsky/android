@@ -1,50 +1,120 @@
+# SPDX-FileCopyrightText: 2021-2024 Nextcloud GmbH and Nextcloud contributors
+# SPDX-FileCopyrightText: 2026 Alper Ozturk <alper.ozturk@nextcloud.com>
+# SPDX-FileCopyrightText: 2023 Andy Scherzinger <info@andy-scherzinger.de>
+# SPDX-License-Identifier: MIT
 name: "QA"
 
 on:
-    pull_request:
-        branches: [ master, stable-* ]
+  pull_request:
+    branches: [ main, master, stable-* ]
 
 permissions:
-    pull-requests: write
-    contents: read
+  pull-requests: write
+  contents: read
 
-concurrency: 
-    group: qa-build-${{ github.head_ref || github.run_id }}
-    cancel-in-progress: true
+concurrency:
+  group: qa-build-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
 
 jobs:
-    qa:
-        runs-on: ubuntu-latest
-        steps:
-            -   name: Check if secrets are available
-                run: echo "::set-output name=ok::${{ secrets.KS_PASS != '' }}"
-                id: check-secrets
-            -   uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3
-                if: ${{ steps.check-secrets.outputs.ok == 'true' }}
-            -   name: set up JDK 17
-                uses: actions/setup-java@cd89f46ac9d01407894225f350157564c9c7cee2 # v3
-                if: ${{ steps.check-secrets.outputs.ok == 'true' }}
-                with:
-                    distribution: "temurin"
-                    java-version: 17
-            -   name: Install NDK and cmake
-                if: ${{ steps.check-secrets.outputs.ok == 'true' }}
-                run: |
-                    source ndk.env
-                    /usr/local/lib/android/sdk/tools/bin/sdkmanager "ndk;${NDK_VERSION}" "cmake;${CMAKE_VERSION}"
-            -   name: Build QA
-                if: ${{ steps.check-secrets.outputs.ok == 'true' }}
-                env:
-                    KS_PASS: ${{ secrets.KS_PASS }}
-                    KEY_PASS: ${{ secrets.KEY_PASS }}
-                    LOG_USERNAME: ${{ secrets.LOG_USERNAME }}
-                    LOG_PASSWORD: ${{ secrets.LOG_PASSWORD }}
-                    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-                run: |
-                    mkdir -p $HOME/.gradle
-                    echo "org.gradle.jvmargs=-Xmx2g -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError" > $HOME/.gradle/gradle.properties
-                    sed -i "/qa/,/\}/ s/versionCode .*/versionCode ${{github.event.number}} /" app/build.gradle
-                    sed -i "/qa/,/\}/ s/versionName .*/versionName \"${{github.event.number}}\"/" app/build.gradle
-                    ./gradlew assembleQaDebug
-                    $(find /usr/local/lib/android/sdk/build-tools/*/apksigner | sort | tail -n1) sign  --ks-pass pass:$KS_PASS --key-pass pass:$KEY_PASS --ks-key-alias key0 --ks scripts/QA_keystore.jks app/build/outputs/apk/qa/debug/qa-debug-*.apk
-                    scripts/uploadArtifact.sh $LOG_USERNAME $LOG_PASSWORD ${{github.event.number}} ${{github.event.number}}
+  qa:
+    runs-on: ubuntu-latest-max
+    steps:
+      - name: Check if secrets are available
+        run: echo "ok=${{ secrets.KS_PASS != '' }}" >> "$GITHUB_OUTPUT"
+        id: check-secrets
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: ${{ steps.check-secrets.outputs.ok == 'true' }}
+        with:
+          persist-credentials: false
+
+      - name: set up JDK 21
+        uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
+        if: ${{ steps.check-secrets.outputs.ok == 'true' }}
+        with:
+          distribution: "temurin"
+          java-version: 25
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+        if: ${{ steps.check-secrets.outputs.ok == 'true' }}
+
+      - name: Build QA
+        id: build-qa
+        if: ${{ steps.check-secrets.outputs.ok == 'true' }}
+        env:
+          KS_PASS: ${{ secrets.KS_PASS }}
+          KEY_PASS: ${{ secrets.KEY_PASS }}
+          LOG_USERNAME: ${{ secrets.LOG_USERNAME }}
+          LOG_PASSWORD: ${{ secrets.LOG_PASSWORD }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p "$HOME/.gradle"
+          {
+            echo "org.gradle.jvmargs=-Xmx3g -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8 -XX:+UseParallelGC -XX:MaxMetaspaceSize=1g"
+            echo "org.gradle.caching=true"
+            echo "org.gradle.parallel=true"
+            echo "org.gradle.configureondemand=true"
+          } > "$HOME/.gradle/gradle.properties"
+          [ -e app/build.gradle ] && sed -i "/qa/,/\}/ s/versionCode .*/versionCode ${{github.event.number}} /" "app/build.gradle"
+          [ -e app/build.gradle ] && sed -i "/qa/,/\}/ s/versionName .*/versionName \"${{github.event.number}}\"/" "app/build.gradle"
+          [ -e app/build.gradle.kts ] && sed -i "/qa/,/\}/ s/versionCode .*/versionCode = ${{github.event.number}} /" "app/build.gradle.kts"
+          [ -e app/build.gradle.kts ] && sed -i "/qa/,/\}/ s/versionName .*/versionName = \"${{github.event.number}}\"/" "app/build.gradle.kts"
+          ./gradlew assembleQaDebug
+          $(find /usr/local/lib/android/sdk/build-tools/*/apksigner | sort | tail -n1) sign  --ks-pass pass:"$KS_PASS" --key-pass pass:"$KEY_PASS" --ks-key-alias key0 --ks ".github/workflows/QA_keystore.jks" app/build/outputs/apk/qa/debug/*qa-debug*.apk
+          apk=$(find app/build/outputs/apk/qa/debug -name '*qa-debug*.apk' | head -n1)
+          {
+            echo "apk-path=$apk"
+            echo "apk-name=$(basename "$apk")"
+            echo "apk-size=$(du -h "$apk" | cut -f1)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Upload APK
+        id: upload-apk
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        with:
+          path: app/build/outputs/apk/qa/debug/*qa-debug*.apk
+          retention-days: 7
+          archive: false
+
+      - name: Create QR Code
+        if: ${{ steps.check-secrets.outputs.ok == 'true' }}
+        env:
+          ARTIFACT_URL: ${{ steps.upload-apk.outputs.artifact-url }}
+        run: |
+          sudo apt-get -y install qrencode
+          qrencode -s 8 -o qr.png "$ARTIFACT_URL"
+
+      - name: Upload QR
+        id: upload-qr
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        with:
+          path: qr.png
+          if-no-files-found: error
+          retention-days: 7
+          archive: false
+
+      - name: Comment PR
+        if: ${{ steps.check-secrets.outputs.ok == 'true' }}
+        uses: thollander/actions-comment-pull-request@e4a76dd2b0a3c2027c3fd84147a67c22ee4c90fa
+        with:
+          comment-tag: qa-apk
+          mode: upsert
+          message: |
+            ### :iphone: QA build
+
+            | | |
+            |---|---|
+            | **Download** | [${{ steps.build-qa.outputs.apk-name }}](${{ steps.upload-apk.outputs.artifact-url }}) |
+            | **QR code** | [Open the QR code for this download](${{ steps.upload-qr.outputs.artifact-url }}) |
+            | **Commit** | ${{ github.event.pull_request.head.sha }} |
+            | **Version** | `${{ github.event.number }}` |
+            | **Available until** | 7 days after this build |
+
+            The QA build installs alongside a released Nextcloud app, so you can keep
+            using your existing install while testing.
+
+            Downloading the file requires a GitHub account, so open this link on the
+            device you want to test on, or transfer the APK to it.

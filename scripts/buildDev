@@ -1,14 +1,20 @@
 #!/bin/bash
+#
+# SPDX-FileCopyrightText: 2017-2024 Nextcloud GmbH and Nextcloud contributors
+# SPDX-FileCopyrightText: 2017 Tobias Kaminsky <tobias@kaminsky.me>
+# SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
+#
 date=$(date +%Y%m%d)
-oldLibraryCommit=$(grep "androidLibraryVersion\ =" build.gradle)
+oldLibraryCommit=$(grep "androidLibraryVersion\ =" gradle/libs.versions.toml)
 libraryCommit=$(curl https://api.github.com/repos/nextcloud/android-library/commits/master | jq .sha | sed s'/\"//g')
 
 # use current date for version code/name
-sed -i "/versionDev/,/\}/ s/versionCode .*/versionCode $date/" app/build.gradle
-sed -i "/versionDev/,/\}/ s/versionName .*/versionName \"$date\"/" app/build.gradle
+sed -i "/versionDev/,/\}/ s/versionCode .*/versionCode = $date/" app/build.gradle.kts
+sed -i "/versionDev/,/\}/ s/versionName .*/versionName = \"$date\"/" app/build.gradle.kts
 
 # change library
-sed -i s"#androidLibraryVersion\ =.*#androidLibraryVersion =\"$libraryCommit\"#" build.gradle
+sed -i s"#androidLibraryVersion\ =.*#androidLibraryVersion = \"$libraryCommit\"#" gradle/libs.versions.toml
+./gradlew --console=plain --dependency-verification lenient -q --write-verification-metadata sha256,pgp help
 
 # build signed apk
 source ndk.env
@@ -37,7 +43,7 @@ apksigner sign --ks-pass env:VERSION_DEV_STORE_PASSWORD \
                --key-pass env:VERSION_DEV_KEY_PASSWORD \
                --ks $VERSION_DEV_STORE_FILE \
                --out ~/apks/nextcloud-dev-$date.apk \
-               ./app/build/outputs/apk/versionDev/release/versionDev-release-$date.apk
+               ./app/build/outputs/apk/versionDev/release/app-versionDev-release-unsigned.apk
 
 # use the current date
 echo $date > ~/apks/latest
@@ -74,6 +80,7 @@ if git log --pretty='format:%an' HEAD "^$lastBuildTag" | grep -q dependabot; the
 fi
 
 # changelog
+mkdir -p src/versionDev/fastlane/metadata/android/en-US/changelogs
 echo "$changelog" > src/versionDev/fastlane/metadata/android/en-US/changelogs/$date.txt
 
 git add .

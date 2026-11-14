@@ -1,23 +1,10 @@
 /*
- * ownCloud Android client application
+ * Nextcloud - Android Client
  *
- * @author David A. Velasco
- * Copyright (C) 2016 ownCloud Inc.
- * <p>
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2,
- * as published by the Free Software Foundation.
- * <p>
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- * <p>
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2016 David A. Velasco
+ * SPDX-FileCopyrightText: 2016 2016 ownCloud Inc
+ * SPDX-License-Identifier: GPL-2.0-only
  */
-
-
 package com.owncloud.android.datamodel;
 
 import android.os.Parcel;
@@ -35,11 +22,8 @@ import static org.hamcrest.MatcherAssert.assertThat;
 
 /**
  * Instrumented unit test, to be run in an Android emulator or device.
- *
  * At the moment, it's a sample to validate the automatic test environment, in the scope of instrumented unit tests.
- *vvlcvlc
  * Don't take it as an example of completeness.
- *
  * See http://developer.android.com/intl/es/training/testing/unit-testing/instrumented-unit-tests.html .
  */
 @RunWith(AndroidJUnit4.class)
@@ -52,6 +36,7 @@ public class OCFileUnitTest {
     private static final String STORAGE_PATH = "/mnt/sd/localpath/to/a/file.txt";
     private static final String MIME_TYPE = "text/plain";
     private static final long FILE_LENGTH = 9876543210L;
+    private static final long UPLOADED_TIMESTAMP = 8765431109L;
     private static final long CREATION_TIMESTAMP = 8765432109L;
     private static final long MODIFICATION_TIMESTAMP = 7654321098L;
     private static final long MODIFICATION_TIMESTAMP_AT_LAST_SYNC_FOR_DATA = 6543210987L;
@@ -70,7 +55,6 @@ public class OCFileUnitTest {
         mFile = new OCFile(PATH);
     }
 
-
     @Test
     public void writeThenReadAsParcelable() {
 
@@ -80,6 +64,7 @@ public class OCFileUnitTest {
         mFile.setStoragePath(STORAGE_PATH);
         mFile.setMimeType(MIME_TYPE);
         mFile.setFileLength(FILE_LENGTH);
+        mFile.setUploadTimestamp(UPLOADED_TIMESTAMP);
         mFile.setCreationTimestamp(CREATION_TIMESTAMP);
         mFile.setModificationTimestamp(MODIFICATION_TIMESTAMP);
         mFile.setModificationTimestampAtLastSyncForData(MODIFICATION_TIMESTAMP_AT_LAST_SYNC_FOR_DATA);
@@ -110,6 +95,7 @@ public class OCFileUnitTest {
         assertThat(fileReadFromParcel.getStoragePath(), is(STORAGE_PATH));
         assertThat(fileReadFromParcel.getMimeType(), is(MIME_TYPE));
         assertThat(fileReadFromParcel.getFileLength(), is(FILE_LENGTH));
+        assertThat(fileReadFromParcel.getUploadTimestamp(), is(UPLOADED_TIMESTAMP));
         assertThat(fileReadFromParcel.getCreationTimestamp(), is(CREATION_TIMESTAMP));
         assertThat(fileReadFromParcel.getModificationTimestamp(), is(MODIFICATION_TIMESTAMP));
         assertThat(

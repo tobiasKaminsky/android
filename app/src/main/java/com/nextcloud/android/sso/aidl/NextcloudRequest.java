@@ -1,44 +1,11 @@
 /*
+ * Nextcloud - Android Client
  *
- * Nextcloud Android client application
- *
- * @author Tobias Kaminsky
- * Copyright (C) 2021 Tobias Kaminsky
- * Copyright (C) 2021 Nextcloud GmbH
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2021 Tobias Kaminsky <tobias@kaminsky.me>
+ * SPDX-FileCopyrightText: 2021 Nextcloud GmbH
+ * SPDX-FileCopyrightText: 2017 David Luhmer <david-dev@live.de>
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
-
-/*
- *  Nextcloud SingleSignOn
- *
- *  @author David Luhmer
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
-
 package com.nextcloud.android.sso.aidl;
 
 import com.nextcloud.android.sso.QueryParam;
@@ -54,9 +21,13 @@ public class NextcloudRequest implements Serializable {
 
     private static final long serialVersionUID = 215521212534240L; //assign a long value
 
+    public static final String ADDITIONAL_PARAMETER_MOVE_DESTINATION = "Destination";
+    public static final String ADDITIONAL_PARAMETER_MOVE_OVERWRITE = "Overwrite";
+
     private String method;
     private Map<String, List<String>> header = new HashMap<>();
     private Map<String, String> parameter = new HashMap<>();
+    private Map<String, String> additionalParameter = new HashMap<>();
     private final Collection<QueryParam> parameterV2 = new LinkedList<>();
     private String requestBody;
     private String url;
@@ -90,6 +61,15 @@ public class NextcloudRequest implements Serializable {
 
         public Builder setParameter(Map<String, String> parameter) {
             ncr.parameter = parameter;
+            return this;
+        }
+
+        public Builder setAdditionalParameters(Map<String, String> ap) {
+            ncr.additionalParameter = ap;
+            return this;
+        }
+        public Builder setAdditionalParameter(String key, String value) {
+            ncr.additionalParameter.put(key, value);
             return this;
         }
 
@@ -134,6 +114,13 @@ public class NextcloudRequest implements Serializable {
 
     public Map<String, String> getParameter() {
         return this.parameter;
+    }
+
+    public Map<String, String> getAdditionalParameters() {
+        return this.additionalParameter;
+    }
+    public String getAdditionalParameter(String key) {
+        return this.additionalParameter.get(key);
     }
 
     public String getRequestBody() {

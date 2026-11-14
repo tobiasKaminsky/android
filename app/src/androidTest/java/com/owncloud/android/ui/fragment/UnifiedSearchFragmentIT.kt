@@ -1,99 +1,90 @@
 /*
- * Nextcloud Android client application
+ * Nextcloud - Android Client
  *
- * @author Tobias Kaminsky
- * Copyright (C) 2020 Tobias Kaminsky
- * Copyright (C) 2020 Nextcloud GmbH
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2025 Alper Ozturk <alper.ozturk@nextcloud.com>
+ * SPDX-FileCopyrightText: 2020 Tobias Kaminsky <tobias@kaminsky.me>
+ * SPDX-FileCopyrightText: 2020 Nextcloud GmbH
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.ui.fragment
 
-import androidx.test.espresso.intent.rule.IntentsTestRule
-import androidx.test.internal.runner.junit4.statement.UiThreadStatement
+import androidx.test.core.app.launchActivity
+import androidx.test.espresso.Espresso.onView
+import androidx.test.espresso.assertion.ViewAssertions.matches
+import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
+import androidx.test.espresso.matcher.ViewMatchers.isRoot
+import com.nextcloud.test.Flaky
 import com.nextcloud.test.TestActivity
 import com.owncloud.android.AbstractIT
 import com.owncloud.android.datamodel.OCFile
 import com.owncloud.android.lib.common.SearchResultEntry
 import com.owncloud.android.ui.unifiedsearch.UnifiedSearchSection
+import com.owncloud.android.ui.unifiedsearch.toUnifiedSearchEntry
 import com.owncloud.android.ui.unifiedsearch.UnifiedSearchViewModel
-import org.junit.Rule
 import org.junit.Test
 import java.io.File
 
 class UnifiedSearchFragmentIT : AbstractIT() {
-    @get:Rule
-    val testActivityRule = IntentsTestRule(TestActivity::class.java, true, false)
 
     @Test
+    @Flaky(reason = "Search result list is occasionally not rendered before the assertions run")
     fun showSearchResult() {
-        val activity = testActivityRule.launchActivity(null)
-        val sut = UnifiedSearchFragment.newInstance(null)
+        launchActivity<TestActivity>().use { scenario ->
 
-        activity.addFragment(sut)
-
-        shortSleep()
-
-        UiThreadStatement.runOnUiThread {
-            sut.onSearchResultChanged(
-                listOf(
-                    UnifiedSearchSection(
-                        providerID = "files",
-                        name = "Files",
-                        entries = listOf(
-                            SearchResultEntry(
-                                "thumbnailUrl",
-                                "Test",
-                                "in Files",
-                                "http://localhost/nc/index.php/apps/files/?dir=/Files&scrollto=Test",
-                                "icon",
-                                false
-                            )
-                        ),
-                        hasMoreResults = false
+            scenario.onActivity { activity ->
+                val sut = UnifiedSearchFragment.newInstance(null, null, "/")
+                activity.addFragment(sut)
+                activity.supportFragmentManager.executePendingTransactions()
+                sut.onSearchResultChanged(
+                    listOf(
+                        UnifiedSearchSection(
+                            providerID = "files",
+                            name = "Files",
+                            entries = listOf(
+                                SearchResultEntry(
+                                    "thumbnailUrl",
+                                    "Test",
+                                    "in Files",
+                                    "http://localhost/nc/index.php/apps/files/?dir=/Files&scrollto=Test",
+                                    "icon",
+                                    false
+                                ).toUnifiedSearchEntry(storageManager)
+                            ),
+                            hasMoreResults = false
+                        )
                     )
                 )
-            )
+            }
+
+            onView(isRoot()).check(matches(isDisplayed()))
         }
-        shortSleep()
     }
 
     @Test
+    @Flaky(reason = "Search runs asynchronously and does not always complete before the assertions run")
     fun search() {
-        val activity = testActivityRule.launchActivity(null) as TestActivity
-        val sut = UnifiedSearchFragment.newInstance(null)
-        val testViewModel = UnifiedSearchViewModel(activity.application)
-        testViewModel.setConnectivityService(activity.connectivityServiceMock)
-        val localRepository = UnifiedSearchFakeRepository()
-        testViewModel.setRepository(localRepository)
+        launchActivity<TestActivity>().use { scenario ->
+            scenario.onActivity { activity ->
+                val sut = UnifiedSearchFragment.newInstance(null, null, "/")
+                val testViewModel = UnifiedSearchViewModel(activity.application)
+                testViewModel.setCurrentAccountProvider(activity.userAccountManager)
+                testViewModel.setConnectivityService(activity.connectivityServiceMock)
+                val localRepository = UnifiedSearchFakeRepository()
+                testViewModel.setRepository(localRepository)
+                val ocFile = OCFile("/folder/test1.txt").apply {
+                    storagePath = "/sdcard/1.txt"
+                    storageManager.saveFile(this)
+                }
 
-        val ocFile = OCFile("/folder/test1.txt").apply {
-            storagePath = "/sdcard/1.txt"
-            storageManager.saveFile(this)
+                File(ocFile.storagePath).createNewFile()
+                activity.addFragment(sut)
+                activity.supportFragmentManager.executePendingTransactions()
+                sut.setViewModel(testViewModel)
+                sut.vm.setQuery("test")
+                sut.vm.initialQuery()
+            }
+
+            onView(isRoot()).check(matches(isDisplayed()))
         }
-
-        File(ocFile.storagePath).createNewFile()
-
-        activity.addFragment(sut)
-
-        shortSleep()
-
-        UiThreadStatement.runOnUiThread {
-            sut.setViewModel(testViewModel)
-            sut.vm.setQuery("test")
-            sut.vm.initialQuery()
-        }
-        shortSleep()
     }
 }

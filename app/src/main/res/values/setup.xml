@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  ~ Nextcloud - Android Client
+  ~
+  ~ SPDX-FileCopyrightText: 2019-2024 Nextcloud GmbH and Nextcloud contributors
+  ~ SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
+-->
 <resources>
     <!-- Beta indicator -->
     <bool name="is_beta">false</bool>
@@ -17,13 +23,26 @@
     <string name="db_name">nextcloud</string>
     <string name="data_folder">nextcloud</string>
     <string name="default_display_name_for_root_folder">Nextcloud</string>
-    <string name="nextcloud_user_agent">Mozilla/5.0 (Android) Nextcloud-android/%1$s</string>
-    <string name="only_office_user_agent">Mozilla/5.0 (Android %1$s) Mobile Nextcloud-android/%2$s</string>
+    <string name="nextcloud_user_agent">Mozilla/5.0 (Android) Nextcloud-android/%1$s%2$s</string>
+    <string name="office_user_agent">Mozilla/5.0 (Android %1$s) Mobile Nextcloud-android/%2$s</string>
+    <string name="name_for_branded_user_agent"></string>
 
     <!-- URLs and flags related -->
     <bool name="show_server_url_input">true</bool>
     <bool name="show_provider_or_own_installation">true</bool>
     <string name="provider_registration_server">https://www.nextcloud.com/register</string>
+
+    <!-- specify built in proxy -->
+    <string name="proxy_host"></string>
+    <integer name="proxy_port">-1</integer>
+
+    <bool name="disable_intro">false</bool>
+    <bool name="disable_multiaccount">false</bool>
+    <bool name="disable_more_external_site">false</bool>
+    <bool name="disable_sharing">false</bool>
+    <bool name="disable_clipboard">false</bool>
+    <bool name="disable_log">false</bool>
+    <bool name="enforce_protection">false</bool>
 
     <!-- Flags to enable/disable some features -->
     <string name="send_files_to_other_apps">on</string>
@@ -32,6 +51,7 @@
     <bool name="show_external_links">true</bool>
     <bool name="show_outdated_server_warning">true</bool>
     <bool name="is_branded_client">false</bool>
+    <bool name="is_branded_plus_client">false</bool>
 
     <!-- Calendar & Contacts backup -->
     <string name="contacts_backup_folder">/.Contacts-Backup</string>
@@ -56,7 +76,6 @@
     <bool name="multiaccount_support">true</bool>
 
     <!-- Drawer options -->
-    <bool name="recently_modified_enabled">false</bool>
     <bool name="shared_enabled">true</bool>
     <bool name="show_drawer_logout">false</bool>
 
@@ -71,7 +90,7 @@
     <string name="privacy_url">https://nextcloud.com/privacy</string>
     <bool name="imprint_enabled">false</bool>
     <bool name="recommend_enabled">true</bool>
-    <bool name="logger_enabled">false</bool>
+    <bool name="logger_enabled">true</bool>
     <bool name="sourcecode_enabled">true</bool>
     <string name="sourcecode_url" translatable="false">https://github.com/nextcloud/android</string>
     <bool name="license_enabled">true</bool>
@@ -85,7 +104,7 @@
     <string name="syncedFolder_remote_folder">@string/auto_upload_path</string>
     <bool name="syncedFolder_light_on_charging">false</bool>
     <bool name="syncedFolder_light_use_subfolders">false</bool>
-    <string name="syncedFolder_light_upload_behaviour">FileUploader.LOCAL_BEHAVIOUR_FORGET</string>
+    <string name="syncedFolder_light_upload_behaviour">FilesUploadWorker.LOCAL_BEHAVIOUR_FORGET</string>
 
     <!--Destination mail for sending log files -->
     <string name="mail_logger"></string>
@@ -101,7 +120,7 @@
     <string name="translation_link" translatable="false">https://app.transifex.com/nextcloud/nextcloud/android/</string>
     <string name="contributing_link" translatable="false">https://github.com/nextcloud/android/blob/master/CONTRIBUTING.md</string>
     <!-- For semi-automated bug report creation -->
-    <string name="report_issue_link" translatable="false">https://github.com/nextcloud/android/issues/new?labels=bug&amp;body=%1$s</string>
+    <string name="report_issue_link" translatable="false">https://github.com/nextcloud/android/issues/new?template=bug_report.yml</string>
     <!-- For manual report from user -->
     <string name="report_issue_empty_link" translatable="false">https://github.com/nextcloud/android/issues/new/choose</string>
 
@@ -111,6 +130,11 @@
     If set, will replace all other login methods available -->
     <string name="webview_login_url" translatable="false"></string>
 
+    <!--    [{\"name\":\"name1\",\"url\":\"url\"},{\"name\":\"name2\",\"url\":\"url1\"}]-->
+    <string name="enforce_servers" translatable="false"></string>
+    <string name="suggested_server" translatable="false"></string>
+
+    
     <!-- Files becomes Home -->
     <bool name="use_home">false</bool>
 
@@ -120,6 +144,11 @@
     <!-- if contains values, will be used to show branding title below app icon in splash screen -->
     <string name="splashScreenBold"></string>
     <string name="splashScreenNormal"></string>
+
+    <!-- Geocoding -->
+    <string name="osm_geocoder_url" translatable="false">https://nominatim.openstreetmap.org/</string>
+    <string name="osm_geocoder_contact" translatable="false">android@nextcloud.com</string>
+
 
     <!-- Dev settings -->
     <string name="dev_link">https://download.nextcloud.com/android/dev/nextcloud-dev-</string>

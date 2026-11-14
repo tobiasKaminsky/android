@@ -1,35 +1,16 @@
 /*
- *  Nextcloud Android Library is available under MIT license
+ * Nextcloud - Android Client
  *
- *  @author Álvaro Brey Vilas
- *  Copyright (C) 2022 Álvaro Brey Vilas
- *  Copyright (C) 2022 Nextcloud GmbH
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in
- *  all copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- *  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- *  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- *  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- *  BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- *  ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- *  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- *  THE SOFTWARE.
+ * SPDX-FileCopyrightText: 2022 Álvaro Brey Vilas
+ * SPDX-FileCopyrightText: 2022 Nextcloud GmbH
+ * SPDX-License-Identifier: MIT
  */
-
 package com.owncloud.android.ui.fragment.util
 
 import android.graphics.Canvas
 import android.graphics.Rect
 import android.view.MotionEvent
+import androidx.core.view.isEmpty
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.RecyclerView.ItemDecoration
@@ -48,10 +29,8 @@ import kotlin.math.min
  *
  * Copied from me.zhanghai.android.fastscroll.RecyclerViewHelper and heavily modified for gallery structure
  */
-class GalleryFastScrollViewHelper(
-    private val mView: RecyclerView,
-    private val mPopupTextProvider: PopupTextProvider?
-) : FastScroller.ViewHelper {
+class GalleryFastScrollViewHelper(private val mView: RecyclerView, private val mPopupTextProvider: PopupTextProvider?) :
+    FastScroller.ViewHelper {
     // used to calculate paddings
     private val mTempRect = Rect()
 
@@ -92,9 +71,8 @@ class GalleryFastScrollViewHelper(
 
     override fun addOnTouchEventListener(onTouchEvent: Predicate<MotionEvent?>) {
         mView.addOnItemTouchListener(object : SimpleOnItemTouchListener() {
-            override fun onInterceptTouchEvent(recyclerView: RecyclerView, event: MotionEvent): Boolean {
-                return onTouchEvent.test(event)
-            }
+            override fun onInterceptTouchEvent(recyclerView: RecyclerView, event: MotionEvent): Boolean =
+                onTouchEvent.test(event)
 
             override fun onTouchEvent(recyclerView: RecyclerView, event: MotionEvent) {
                 onTouchEvent.test(event)
@@ -146,7 +124,9 @@ class GalleryFastScrollViewHelper(
         val totalSeenRows = seenRowsInPreviousSections + seenRowsInThisSection
 
         val seenHeaders = when {
-            isHeader -> itemCoord.section() // don't count the current section header
+            isHeader -> itemCoord.section()
+
+            // don't count the current section header
             else -> itemCoord.section() + 1
         }
 
@@ -219,9 +199,7 @@ class GalleryFastScrollViewHelper(
         return sectionStartOffsets
     }
 
-    private fun itemCountToRowCount(itemsCount: Int): Int {
-        return ceil(itemsCount.toDouble() / columnCount).toInt()
-    }
+    private fun itemCountToRowCount(itemsCount: Int): Int = ceil(itemsCount.toDouble() / columnCount).toInt()
 
     override fun getPopupText(): String? {
         var popupTextProvider: PopupTextProvider? = mPopupTextProvider
@@ -238,12 +216,12 @@ class GalleryFastScrollViewHelper(
         return if (position == RecyclerView.NO_POSITION) {
             null
         } else {
-            popupTextProvider.getPopupText(position).toString()
+            popupTextProvider.getPopupText(mView, position).toString()
         }
     }
 
     private fun getFirstItemAdapterPosition(): Int {
-        if (mView.childCount == 0) {
+        if (mView.isEmpty()) {
             return RecyclerView.NO_POSITION
         }
         val itemView = mView.getChildAt(0)
@@ -251,7 +229,7 @@ class GalleryFastScrollViewHelper(
     }
 
     private fun getFirstItemOffset(): Int {
-        if (mView.childCount == 0) {
+        if (mView.isEmpty()) {
             return RecyclerView.NO_POSITION
         }
         val itemView = mView.getChildAt(0)

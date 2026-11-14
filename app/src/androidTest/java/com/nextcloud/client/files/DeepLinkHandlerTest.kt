@@ -1,21 +1,8 @@
-/**
- * Nextcloud Android client application
+/*
+ * Nextcloud - Android Client
  *
- * @author Chris Narkiewicz
- * Copyright (C) 2020 Chris Narkiewicz <hello@ezaquarii.com>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2020 Chris Narkiewicz <hello@ezaquarii.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.files
 
@@ -50,8 +37,8 @@ class DeepLinkHandlerTest {
     class DeepLinkPattern {
 
         companion object {
-            val FILE_ID = 1234
-            val SERVER_BASE_URLS = listOf(
+            private const val FILE_ID = 1234
+            private val SERVER_BASE_URLS = listOf(
                 "http://hostname.net",
                 "https://hostname.net",
                 "http://hostname.net/subdir1",
@@ -61,7 +48,7 @@ class DeepLinkHandlerTest {
                 "http://hostname.net/subdir1/subdir2/subdir3",
                 "https://hostname.net/subdir1/subdir2/subdir3"
             )
-            val INDEX_PHP_PATH = listOf(
+            private val INDEX_PHP_PATH = listOf(
                 "",
                 "/index.php"
             )
@@ -115,12 +102,12 @@ class DeepLinkHandlerTest {
             const val OTHER_SERVER_BASE_URL = "https://someotherserver.net"
             const val SERVER_BASE_URL = "https://server.net"
             const val FILE_ID = "1234567890"
-            val DEEP_LINK = Uri.parse("$SERVER_BASE_URL/index.php/f/$FILE_ID")
+            val DEEP_LINK: Uri = Uri.parse("$SERVER_BASE_URL/index.php/f/$FILE_ID")
 
             fun createMockUser(serverBaseUrl: String): User {
                 val user = mock<User>()
                 val uri = URI.create(serverBaseUrl)
-                val server = Server(uri = uri, version = OwnCloudVersion.nextcloud_19)
+                val server = Server(uri = uri, version = OwnCloudVersion.nextcloud_20)
                 whenever(user.server).thenReturn(server)
                 return user
             }
@@ -128,8 +115,8 @@ class DeepLinkHandlerTest {
 
         @Mock
         lateinit var userAccountManager: UserAccountManager
-        lateinit var allUsers: List<User>
-        lateinit var handler: DeepLinkHandler
+        private lateinit var allUsers: List<User>
+        private lateinit var handler: DeepLinkHandler
 
         @Before
         fun setUp() {

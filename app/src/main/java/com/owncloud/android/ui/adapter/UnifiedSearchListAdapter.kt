@@ -1,43 +1,36 @@
 /*
- * Nextcloud Android client application
+ * Nextcloud - Android Client
  *
- * @author Tobias Kaminsky
- * @author Chris Narkiewicz <hello@ezaquarii.com>
- *
- * Copyright (C) 2018 Tobias Kaminsky
- * Copyright (C) 2018 Nextcloud
- * Copyright (C) 2020 Chris Narkiewicz <hello@ezaquarii.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE
- * License as published by the Free Software Foundation; either
- * version 3 of the License, or any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU AFFERO GENERAL PUBLIC LICENSE for more details.
- *
- * You should have received a copy of the GNU Affero General Public
- * License along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2019 Chris Narkiewicz <hello@ezaquarii.com>
+ * SPDX-FileCopyrightText: 2018 Tobias Kaminsky <tobias@kaminsky.me>
+ * SPDX-FileCopyrightText: 2018 Nextcloud
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.ui.adapter
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.view.LayoutInflater
-import android.view.View
 import android.view.ViewGroup
+import androidx.core.view.isVisible
+import androidx.recyclerview.widget.RecyclerView
 import com.afollestad.sectionedrecyclerview.SectionedRecyclerViewAdapter
 import com.afollestad.sectionedrecyclerview.SectionedViewHolder
+import com.bumptech.glide.Glide
 import com.nextcloud.client.account.User
-import com.nextcloud.client.network.ClientFactory
+import com.nextcloud.utils.thumbnail.ThumbnailGenerator
+import com.nextcloud.utils.view.LocaleDirection
 import com.owncloud.android.R
+import com.owncloud.android.databinding.UnifiedSearchCurrentDirectoryItemBinding
 import com.owncloud.android.databinding.UnifiedSearchEmptyBinding
 import com.owncloud.android.databinding.UnifiedSearchFooterBinding
 import com.owncloud.android.databinding.UnifiedSearchHeaderBinding
 import com.owncloud.android.databinding.UnifiedSearchItemBinding
 import com.owncloud.android.datamodel.FileDataStorageManager
-import com.owncloud.android.datamodel.ThumbnailsCacheManager.InitDiskCacheTask
+import com.owncloud.android.datamodel.OCFile
+import com.owncloud.android.datamodel.ThumbnailsCacheManager
+import com.owncloud.android.ui.helpers.FileOperationsHelper
+import com.owncloud.android.ui.interfaces.UnifiedSearchCurrentDirItemAction
 import com.owncloud.android.ui.interfaces.UnifiedSearchListInterface
 import com.owncloud.android.ui.unifiedsearch.UnifiedSearchSection
 import com.owncloud.android.utils.theme.ViewThemeUtils
@@ -45,20 +38,68 @@ import com.owncloud.android.utils.theme.ViewThemeUtils
 /**
  * This Adapter populates a SectionedRecyclerView with search results by unified search
  */
-@Suppress("LongParameterList")
+@Suppress("LongMethod")
 class UnifiedSearchListAdapter(
+    private val supportsOpeningCalendarContactsLocally: Boolean,
     private val storageManager: FileDataStorageManager,
     private val listInterface: UnifiedSearchListInterface,
-    private val user: User,
-    private val clientFactory: ClientFactory,
+    private val filesAction: UnifiedSearchItemViewHolder.FilesAction,
     private val context: Context,
-    private val viewThemeUtils: ViewThemeUtils
+    private val viewThemeUtils: ViewThemeUtils,
+    private val currentDirItemAction: UnifiedSearchCurrentDirItemAction,
+    private val thumbnailGenerator: ThumbnailGenerator,
+    private val user: User
 ) : SectionedRecyclerViewAdapter<SectionedViewHolder>() {
     companion object {
         private const val VIEW_TYPE_EMPTY = Int.MAX_VALUE
+        private const val VIEW_TYPE_CURRENT_DIR = 0
     }
 
+    private var currentDirItems: List<OCFile> = listOf()
     private var sections: List<UnifiedSearchSection> = emptyList()
+
+    init {
+        setHasStableIds(true)
+
+        // initialize thumbnails cache on background thread
+        ThumbnailsCacheManager.initDiskCacheAsync()
+    }
+
+    override fun getItemId(section: Int, position: Int): Long = when {
+        // Current directory section
+        isCurrentDirItem(section) -> {
+            currentDirItems.getOrNull(position)?.fileId ?: RecyclerView.NO_ID
+        }
+
+        // Normal unified search sections
+        else -> {
+            val index = getSectionIndex(section)
+            sections.getOrNull(index)
+                ?.entries
+                ?.getOrNull(position)?.searchResult?.hashCode()?.toLong() ?: RecyclerView.NO_ID
+        }
+    }
+
+    override fun getHeaderId(section: Int): Long = if (isCurrentDirItem(section)) {
+        Long.MAX_VALUE - 1
+    } else {
+        val index = getSectionIndex(section)
+        sections.getOrNull(index)?.name?.hashCode()?.toLong()
+            ?: RecyclerView.NO_ID
+    }
+
+    override fun getFooterId(section: Int): Long = if (isCurrentDirItem(section)) {
+        Long.MAX_VALUE
+    } else {
+        val index = getSectionIndex(section)
+        sections.getOrNull(index)?.let {
+            if (it.hasMoreResults) {
+                (it.name + "_footer").hashCode().toLong()
+            } else {
+                RecyclerView.NO_ID
+            }
+        } ?: RecyclerView.NO_ID
+    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SectionedViewHolder {
         val layoutInflater = LayoutInflater.from(context)
@@ -71,14 +112,16 @@ class UnifiedSearchListAdapter(
                 )
                 UnifiedSearchHeaderViewHolder(binding, viewThemeUtils, context)
             }
+
             VIEW_TYPE_FOOTER -> {
                 val binding = UnifiedSearchFooterBinding.inflate(
                     layoutInflater,
                     parent,
                     false
                 )
-                UnifiedSearchFooterViewHolder(binding, context, listInterface)
+                UnifiedSearchFooterViewHolder(binding, context, viewThemeUtils, listInterface)
             }
+
             VIEW_TYPE_ITEM -> {
                 val binding = UnifiedSearchItemBinding.inflate(
                     layoutInflater,
@@ -86,49 +129,108 @@ class UnifiedSearchListAdapter(
                     false
                 )
                 UnifiedSearchItemViewHolder(
+                    supportsOpeningCalendarContactsLocally,
                     binding,
-                    user,
-                    clientFactory,
-                    storageManager,
                     listInterface,
+                    filesAction,
                     context,
-                    viewThemeUtils
+                    viewThemeUtils,
+                    thumbnailGenerator,
+                    FileOperationsHelper.isEndToEndEncryptionSetup(context, user)
                 )
             }
+
+            VIEW_TYPE_CURRENT_DIR -> {
+                val isRTL = LocaleDirection.isRtl
+                val binding = UnifiedSearchCurrentDirectoryItemBinding.inflate(layoutInflater, parent, false)
+                UnifiedSearchCurrentDirItemViewHolder(
+                    binding,
+                    context,
+                    storageManager,
+                    isRTL,
+                    currentDirItemAction,
+                    thumbnailGenerator
+                )
+            }
+
             VIEW_TYPE_EMPTY -> {
                 val binding = UnifiedSearchEmptyBinding.inflate(layoutInflater, parent, false)
                 EmptyViewHolder(binding)
             }
+
             else -> throw IllegalArgumentException("Invalid view type")
         }
     }
 
-    internal class EmptyViewHolder(binding: UnifiedSearchEmptyBinding) :
-        SectionedViewHolder(binding.getRoot())
+    private fun isCurrentDirItem(section: Int): Boolean = (currentDirItems.isNotEmpty() && section == 0)
 
-    override fun getSectionCount(): Int {
-        return sections.size
-    }
+    private fun getSectionIndex(section: Int): Int = if (currentDirItems.isNotEmpty()) section - 1 else section
 
-    override fun getItemCount(section: Int): Int {
-        return sections[section].entries.size
+    internal class EmptyViewHolder(binding: UnifiedSearchEmptyBinding) : SectionedViewHolder(binding.getRoot())
+
+    override fun getSectionCount(): Int = (if (currentDirItems.isNotEmpty()) 1 else 0) + sections.size
+
+    override fun getItemViewType(section: Int, relativePosition: Int, absolutePosition: Int): Int =
+        if (isCurrentDirItem(section)) {
+            VIEW_TYPE_CURRENT_DIR
+        } else {
+            VIEW_TYPE_ITEM
+        }
+
+    override fun getItemCount(section: Int): Int = if (isCurrentDirItem(section)) {
+        currentDirItems.size
+    } else {
+        val index = if (currentDirItems.isNotEmpty()) section - 1 else section
+        sections.getOrNull(index)?.entries?.size ?: 0
     }
 
     override fun onBindHeaderViewHolder(holder: SectionedViewHolder, section: Int, expanded: Boolean) {
-        val headerViewHolder = holder as UnifiedSearchHeaderViewHolder
-        headerViewHolder.bind(sections[section])
-    }
-
-    override fun onBindFooterViewHolder(holder: SectionedViewHolder, section: Int) {
-        if (sections[section].hasMoreResults) {
-            val footerViewHolder = holder as UnifiedSearchFooterViewHolder
-            footerViewHolder.bind(sections[section])
+        if (holder is UnifiedSearchHeaderViewHolder) {
+            if (isCurrentDirItem(section)) {
+                val name = context.getString(R.string.unified_search_fragment_search_in_this_folder)
+                val currentDirUnifiedSearchSection = UnifiedSearchSection("", name, listOf(), false)
+                holder.bind(currentDirUnifiedSearchSection)
+            } else {
+                val index = getSectionIndex(section)
+                val sectionData = sections.getOrNull(index) ?: return
+                holder.bind(sectionData)
+            }
         }
     }
 
-    override fun getFooterViewType(section: Int): Int = when {
-        sections[section].hasMoreResults -> VIEW_TYPE_FOOTER
-        else -> VIEW_TYPE_EMPTY
+    override fun onBindFooterViewHolder(holder: SectionedViewHolder, section: Int) {
+        if (isCurrentDirItem(section)) {
+            return
+        }
+
+        val index = getSectionIndex(section)
+        val sectionData = sections.getOrNull(index) ?: return
+
+        if (sectionData.hasMoreResults && holder is UnifiedSearchFooterViewHolder) {
+            holder.bind(sectionData)
+        }
+    }
+
+    override fun getFooterViewType(section: Int): Int {
+        if (isCurrentDirItem(section)) {
+            return VIEW_TYPE_EMPTY
+        }
+
+        val index = getSectionIndex(section)
+        val sectionData = sections.getOrNull(index)
+
+        return when {
+            sectionData?.hasMoreResults == true -> VIEW_TYPE_FOOTER
+            else -> VIEW_TYPE_EMPTY
+        }
+    }
+
+    override fun onViewRecycled(holder: SectionedViewHolder) {
+        super.onViewRecycled(holder)
+        if (holder is UnifiedSearchItemViewHolder) {
+            Glide.with(context).clear(holder.binding.thumbnail)
+            holder.binding.thumbnail.setImageDrawable(null)
+        }
     }
 
     override fun onBindViewHolder(
@@ -137,29 +239,38 @@ class UnifiedSearchListAdapter(
         relativePosition: Int,
         absolutePosition: Int
     ) {
-        // TODO different binding (and also maybe diff UI) for non-file results
-        val itemViewHolder = holder as UnifiedSearchItemViewHolder
-        val entry = sections[section].entries[relativePosition]
-        itemViewHolder.bind(entry)
+        if (isCurrentDirItem(section) && holder is UnifiedSearchCurrentDirItemViewHolder) {
+            val entry = currentDirItems.getOrNull(relativePosition) ?: return
+            holder.bind(entry)
+        } else if (holder is UnifiedSearchItemViewHolder) {
+            val index = getSectionIndex(section)
+            val entry = sections.getOrNull(index)?.entries?.getOrNull(relativePosition) ?: return
+            holder.bind(entry)
+        }
     }
 
     override fun onViewAttachedToWindow(holder: SectionedViewHolder) {
         if (holder is UnifiedSearchItemViewHolder) {
-            val thumbnailShimmer = holder.binding.thumbnailShimmer
-            if (thumbnailShimmer.visibility == View.VISIBLE) {
-                thumbnailShimmer.setImageResource(R.drawable.background)
-                thumbnailShimmer.resetLoader()
+            holder.binding.thumbnailShimmer.run {
+                if (isVisible) {
+                    setImageResource(R.drawable.background)
+                    resetLoader()
+                }
             }
         }
     }
 
+    @SuppressLint("NotifyDataSetChanged")
     fun setData(sections: List<UnifiedSearchSection>) {
         this.sections = sections
         notifyDataSetChanged()
     }
 
-    init {
-        // initialise thumbnails cache on background thread
-        InitDiskCacheTask().execute()
+    @SuppressLint("NotifyDataSetChanged")
+    fun setDataCurrentDirItems(currentDirItems: List<OCFile>) {
+        this.currentDirItems = currentDirItems
+        notifyDataSetChanged()
     }
+
+    fun hasLocalResults(): Boolean = currentDirItems.isNotEmpty()
 }

@@ -1,7 +1,16 @@
+/*
+ * Nextcloud - Android Client
+ *
+ * SPDX-FileCopyrightText: 2023 Akshay Chaurasia <akshay.chaurasia@t-systems.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
+ */
 package com.nextcloud.android.utils
 
-import com.nextcloud.utils.getFormattedStringDate
-import com.nextcloud.utils.isCurrentYear
+import com.nextcloud.utils.extensions.getFormattedStringDate
+import com.nextcloud.utils.extensions.extension
+import com.nextcloud.utils.extensions.isCurrentYear
+import com.nextcloud.utils.extensions.removeFileExtension
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -30,5 +39,13 @@ class ExtensionsTest {
         val actualYearNewValue = year2022TimeMills.getFormattedStringDate("")
         assertTrue(actualYearNewValue == "")
         assertFalse(actualYearNewValue == "2022")
+    }
+
+    @Test
+    fun fileExtensionHelpers_checkForEdgeCases() {
+        assertEquals("archive.tar", "archive.tar.gz".removeFileExtension())
+        assertEquals("gz", "archive.tar.gz".extension())
+        assertEquals("", ".gitignore".extension())
+        assertEquals("", "filename.".extension())
     }
 }

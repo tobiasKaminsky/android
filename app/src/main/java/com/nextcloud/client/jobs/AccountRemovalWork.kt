@@ -4,22 +4,12 @@
 * @author Tobias Kaminsky
 * @author Chris Narkiewicz
 *
+* Copyright (C) 2026 Alper Ozturk <alper.ozturk@nextcloud.com>
 * Copyright (C) 2017 Tobias Kaminsky
 * Copyright (C) 2017 Nextcloud GmbH.
 * Copyright (C) 2020 Chris Narkiewicz <hello@ezaquarii.com>
 *
-* This program is free software: you can redistribute it and/or modify
-* it under the terms of the GNU Affero General Public License as published by
-* the Free Software Foundation, either version 3 of the License, or
-* at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU Affero General Public License for more details.
-*
-* You should have received a copy of the GNU Affero General Public License
-* along with this program.  If not, see <http://www.gnu.org/licenses/>.
+* SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
 */
 package com.nextcloud.client.jobs
 
@@ -27,39 +17,37 @@ import android.content.Context
 import android.text.TextUtils
 import androidx.work.Worker
 import androidx.work.WorkerParameters
-import com.google.gson.Gson
 import com.nextcloud.client.account.User
 import com.nextcloud.client.account.UserAccountManager
 import com.nextcloud.client.core.Clock
 import com.nextcloud.client.preferences.AppPreferences
 import com.nextcloud.common.NextcloudClient
-import com.nextcloud.java.util.Optional
 import com.owncloud.android.MainApp
 import com.owncloud.android.R
 import com.owncloud.android.datamodel.ArbitraryDataProvider
 import com.owncloud.android.datamodel.ArbitraryDataProviderImpl
 import com.owncloud.android.datamodel.FileDataStorageManager
 import com.owncloud.android.datamodel.FilesystemDataProvider
-import com.owncloud.android.datamodel.PushConfigurationState
 import com.owncloud.android.datamodel.SyncedFolderProvider
 import com.owncloud.android.datamodel.UploadsStorageManager
+import com.owncloud.android.datamodel.pushconfig.PushConfigurationState
 import com.owncloud.android.lib.common.OwnCloudClient
 import com.owncloud.android.lib.common.OwnCloudClientManagerFactory
 import com.owncloud.android.lib.common.utils.Log_OC
 import com.owncloud.android.lib.resources.users.DeleteAppPasswordRemoteOperation
 import com.owncloud.android.lib.resources.users.RemoteWipeSuccessRemoteOperation
-import com.owncloud.android.providers.DocumentsStorageProvider
+import com.owncloud.android.providers.documentstorage.DocumentsStorageProvider
 import com.owncloud.android.ui.activity.ContactsPreferenceActivity
 import com.owncloud.android.ui.activity.ManageAccountsActivity
 import com.owncloud.android.ui.events.AccountRemovedEvent
 import com.owncloud.android.utils.EncryptionUtils
 import com.owncloud.android.utils.PushUtils
 import org.greenrobot.eventbus.EventBus
+import java.util.Optional
 
 /**
  * Removes account and all local files
  */
-@Suppress("LongParameterList") // legacy code
 class AccountRemovalWork(
     private val context: Context,
     params: WorkerParameters,
@@ -78,7 +66,6 @@ class AccountRemovalWork(
         const val REMOTE_WIPE = "remote_wipe"
     }
 
-    @Suppress("ReturnCount") // legacy code
     override fun doWork(): Result {
         val accountName = inputData.getString(ACCOUNT) ?: ""
         if (TextUtils.isEmpty(accountName)) {
@@ -163,22 +150,22 @@ class AccountRemovalWork(
         user: User,
         arbitraryDataProvider: ArbitraryDataProvider
     ) {
-        val arbitraryDataPushString = arbitraryDataProvider.getValue(user, PushUtils.KEY_PUSH)
+        val pushConfigurationJson = arbitraryDataProvider.getValue(user, PushUtils.KEY_PUSH)
         val pushServerUrl = context.resources.getString(R.string.push_server_url)
-        if (!TextUtils.isEmpty(arbitraryDataPushString) && !TextUtils.isEmpty(pushServerUrl)) {
-            val gson = Gson()
-            val pushArbitraryData = gson.fromJson(
-                arbitraryDataPushString,
-                PushConfigurationState::class.java
-            )
-            pushArbitraryData.isShouldBeDeleted = true
-            arbitraryDataProvider.storeOrUpdateKeyValue(
-                user.accountName,
-                PushUtils.KEY_PUSH,
-                gson.toJson(pushArbitraryData)
-            )
-            PushUtils.pushRegistrationToServer(userAccountManager, pushArbitraryData.getPushToken())
+        if (pushConfigurationJson.isEmpty() || pushServerUrl.isEmpty()) {
+            return
         }
+
+        val newPushConfigurationState = PushConfigurationState.fromJson(pushConfigurationJson).apply {
+            shouldBeDeleted = true
+        }
+        val updatedPushConfigurationJson = PushConfigurationState.toJson(newPushConfigurationState)
+        arbitraryDataProvider.storeOrUpdateKeyValue(
+            user.accountName,
+            PushUtils.KEY_PUSH,
+            updatedPushConfigurationJson
+        )
+        PushUtils.pushRegistrationToServer(userAccountManager, newPushConfigurationState.pushToken)
     }
 
     private fun removeSyncedFolders(context: Context, user: User, clock: Clock) {
@@ -196,29 +183,23 @@ class AccountRemovalWork(
         }
     }
 
-    private fun createClient(user: User): Optional<OwnCloudClient> {
-        @Suppress("TooGenericExceptionCaught") // needs migration to newer api to get rid of exceptions
-        return try {
-            val context = MainApp.getAppContext()
-            val factory = OwnCloudClientManagerFactory.getDefaultSingleton()
-            val client = factory.getClientFor(user.toOwnCloudAccount(), context)
-            Optional.of(client)
-        } catch (e: Exception) {
-            Log_OC.e(this, "Could not create client", e)
-            Optional.empty()
-        }
+    private fun createClient(user: User): Optional<OwnCloudClient> = try {
+        val context = MainApp.getAppContext()
+        val factory = OwnCloudClientManagerFactory.getDefaultSingleton()
+        val client = factory.getClientFor(user.toOwnCloudAccount(), context)
+        Optional.of(client)
+    } catch (e: Exception) {
+        Log_OC.e(this, "Could not create client", e)
+        Optional.empty()
     }
 
-    private fun createNextcloudClient(user: User): Optional<NextcloudClient> {
-        @Suppress("TooGenericExceptionCaught") // needs migration to newer api to get rid of exceptions
-        return try {
-            val context = MainApp.getAppContext()
-            val factory = OwnCloudClientManagerFactory.getDefaultSingleton()
-            val client = factory.getNextcloudClientFor(user.toOwnCloudAccount(), context)
-            Optional.of(client)
-        } catch (e: Exception) {
-            Log_OC.e(this, "Could not create client", e)
-            Optional.empty()
-        }
+    private fun createNextcloudClient(user: User): Optional<NextcloudClient> = try {
+        val context = MainApp.getAppContext()
+        val factory = OwnCloudClientManagerFactory.getDefaultSingleton()
+        val client = factory.getNextcloudClientFor(user.toOwnCloudAccount(), context)
+        Optional.of(client)
+    } catch (e: Exception) {
+        Log_OC.e(this, "Could not create client", e)
+        Optional.empty()
     }
 }

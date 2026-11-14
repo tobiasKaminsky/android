@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+# SPDX-FileCopyrightText: 2019-2024 Nextcloud GmbH and Nextcloud contributors
+# SPDX-FileCopyrightText: 2019-2020 Tobias Kaminsky <tobias@kaminsky.me>
+# SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
+
 if [[ $(grep NC_TEST_SERVER_BASEURL ~/.gradle/gradle.properties   | grep -v "#" -c) -gt 0 ]]; then
     echo "This will not use server in docker. Please comment in .gradle/gradle.properties. Aborting!"
     exit 1
@@ -8,7 +12,7 @@ fi
 ## emulator
 if [[ ! $(emulator -list-avds | grep uiComparison -c) -eq 0 ]]; then
     avdmanager delete avd -n uiComparison
-    (sleep 5; echo "no") | avdmanager create avd -n uiComparison -c 100M -k "system-images;android-27;google_apis;x86" --abi "google_apis/x86"
+    (sleep 5; echo "no") | avdmanager create avd -n uiComparison -c 100M -k "system-images;android-28;google_apis;x86" --abi "google_apis/x86"
 fi
 
 if [ "$1" == "debug" ]; then
@@ -73,17 +77,17 @@ adb shell "echo $IP server >> /system/etc/hosts"
 sed -i s'#<bool name="is_beta">false</bool>#<bool name="is_beta">true</bool>#'g app/src/main/res/values/setup.xml
 
 ## update/create all screenshots
-#./gradlew gplayDebugExecuteScreenshotTests -Precord \
+#./gradlew genericDebugExecuteScreenshotTests -Precord \
 #-Pandroid.testInstrumentationRunnerArguments.annotation=com.owncloud.android.utils.ScreenshotTest
 
 ## update screenshots in a class
-#./gradlew gplayDebugExecuteScreenshotTests \
+#./gradlew genericDebugExecuteScreenshotTests \
 #-Precord \
 #-Pandroid.testInstrumentationRunnerArguments.class=\
 #com.owncloud.android.ui.dialog.SyncFileNotEnoughSpaceDialogFragmentTest
 
 ## update single screenshot within a class
-#./gradlew gplayDebugExecuteScreenshotTests \
+#./gradlew genericDebugExecuteScreenshotTests \
 #-Precord \
 #-Pandroid.testInstrumentationRunnerArguments.class=\
 #com.nextcloud.client.FileDisplayActivityIT#showShares
@@ -93,7 +97,7 @@ retryCount=0
 until [ $resultCode -eq 0 ] || [ $retryCount -gt 2 ]
 do
   # test all screenshots
-  ./gradlew gplayDebugExecuteScreenshotTests \
+  ./gradlew genericDebugExecuteScreenshotTests \
   -Pandroid.testInstrumentationRunnerArguments.annotation=com.owncloud.android.utils.ScreenshotTest
 
 resultCode=$?

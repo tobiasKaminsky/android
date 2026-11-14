@@ -1,3 +1,9 @@
+/*
+ * Nextcloud - Android Client
+ *
+ * SPDX-FileCopyrightText: 2020 Chris Narkiewicz <hello@ezaquarii.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
+ */
 package com.nextcloud.client.etm.pages
 
 import android.os.Bundle
@@ -14,7 +20,7 @@ import java.util.Locale
 
 class EtmMigrations : EtmBaseFragment() {
     private var _binding: FragmentEtmMigrationsBinding? = null
-    private val binding get() = _binding!!
+    val binding get() = _binding!!
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -34,7 +40,7 @@ class EtmMigrations : EtmBaseFragment() {
 
     fun showStatus() {
         val builder = StringBuilder()
-        val status = vm.migrationsStatus.toString().toLowerCase(Locale.US)
+        val status = vm.migrationsStatus.toString().lowercase(Locale.US)
         builder.append("Migration status: $status\n")
         val lastMigratedVersion = if (vm.lastMigratedVersion >= 0) {
             vm.lastMigratedVersion.toString()
@@ -59,14 +65,13 @@ class EtmMigrations : EtmBaseFragment() {
         inflater.inflate(R.menu.fragment_etm_migrations, menu)
     }
 
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        return when (item.itemId) {
-            R.id.etm_migrations_delete -> {
-                onDeleteMigrationsClicked()
-                true
-            }
-            else -> super.onOptionsItemSelected(item)
+    override fun onOptionsItemSelected(item: MenuItem): Boolean = when (item.itemId) {
+        R.id.etm_migrations_delete -> {
+            onDeleteMigrationsClicked()
+            true
         }
+
+        else -> super.onOptionsItemSelected(item)
     }
 
     private fun onDeleteMigrationsClicked() {

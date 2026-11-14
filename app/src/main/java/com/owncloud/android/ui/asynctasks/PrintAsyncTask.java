@@ -1,24 +1,10 @@
 /*
- * Nextcloud Android client application
+ * Nextcloud - Android Client
  *
- * @author Tobias Kaminsky
- * Copyright (C) 2019 Tobias Kaminsky
- * Copyright (C) 2019 Nextcloud GmbH
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2019 Tobias Kaminsky <tobias@kaminsky.me>
+ * SPDX-FileCopyrightText: 2019 Nextcloud GmbH
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
-
 package com.owncloud.android.ui.asynctasks;
 
 import android.os.AsyncTask;
@@ -26,11 +12,11 @@ import android.print.PrintAttributes;
 import android.print.PrintDocumentAdapter;
 import android.print.PrintManager;
 
+import com.nextcloud.utils.SnackbarUtil;
 import com.owncloud.android.R;
 import com.owncloud.android.lib.common.utils.Log_OC;
 import com.owncloud.android.ui.activity.RichDocumentsEditorWebView;
 import com.owncloud.android.ui.adapter.PrintAdapter;
-import com.owncloud.android.utils.DisplayUtils;
 
 import org.apache.commons.httpclient.Header;
 import org.apache.commons.httpclient.HttpClient;
@@ -42,6 +28,8 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
+import java.nio.file.Files;
+import java.util.Objects;
 
 import static android.content.Context.PRINT_SERVICE;
 
@@ -70,69 +58,67 @@ public class PrintAsyncTask extends AsyncTask<Void, Void, Boolean> {
 
     @Override
     protected Boolean doInBackground(Void... voids) {
+        if (file == null) return Boolean.FALSE;
+
         HttpClient client = new HttpClient();
         GetMethod getMethod = null;
 
-        FileOutputStream fos = null;
         try {
             getMethod = new GetMethod(url);
             int status = client.executeMethod(getMethod);
-            if (status == HttpStatus.SC_OK) {
-                if (file.exists() && !file.delete()) {
-                    return Boolean.FALSE;
-                }
+            if (status != HttpStatus.SC_OK) return Boolean.FALSE;
 
-                file.getParentFile().mkdirs();
+            if (file.exists() && !file.delete()) return Boolean.FALSE;
 
-                if (!file.getParentFile().exists()) {
-                    Log_OC.d(TAG, file.getParentFile().getAbsolutePath() + " does not exist");
-                    return Boolean.FALSE;
-                }
+            File parentFile = file.getParentFile();
+            if (parentFile == null) return Boolean.FALSE;
 
-                if (!file.createNewFile()) {
-                    Log_OC.d(TAG, file.getAbsolutePath() + " could not be created");
-                    return Boolean.FALSE;
-                }
+            Files.createDirectories(parentFile.toPath());
+            if (!parentFile.exists()) {
+                Log_OC.d(TAG, parentFile.getAbsolutePath() + " does not exist");
+                return Boolean.FALSE;
+            }
 
+            if (!file.createNewFile()) {
+                Log_OC.d(TAG, file.getAbsolutePath() + " could not be created");
+                return Boolean.FALSE;
+            }
+
+            Header contentLengthHeader = getMethod.getResponseHeader("Content-Length");
+            long totalToTransfer = 0;
+            if (contentLengthHeader != null && !contentLengthHeader.getValue().isEmpty()) {
+                totalToTransfer = Long.parseLong(contentLengthHeader.getValue());
+            }
+
+            try (
                 BufferedInputStream bis = new BufferedInputStream(getMethod.getResponseBodyAsStream());
-                fos = new FileOutputStream(file);
+                FileOutputStream fos = new FileOutputStream(file)
+            ) {
+                byte[] buffer = new byte[4096];
                 long transferred = 0;
+                int read;
 
-                Header contentLength = getMethod.getResponseHeader("Content-Length");
-                long totalToTransfer = contentLength != null && contentLength.getValue().length() > 0 ?
-                    Long.parseLong(contentLength.getValue()) : 0;
-
-                byte[] bytes = new byte[4096];
-                int readResult;
-                while ((readResult = bis.read(bytes)) != -1) {
-                    fos.write(bytes, 0, readResult);
-                    transferred += readResult;
+                while ((read = bis.read(buffer)) != -1) {
+                    fos.write(buffer, 0, read);
+                    transferred += read;
                 }
-                // Check if the file is completed
-                if (transferred != totalToTransfer) {
+
+                if (totalToTransfer > 0 && transferred != totalToTransfer) {
+                    Log_OC.d(TAG, "Transferred bytes (" + transferred +
+                        ") != expected (" + totalToTransfer + ")");
                     return Boolean.FALSE;
-                }
-
-                if (getMethod.getResponseBodyAsStream() != null) {
-                    getMethod.getResponseBodyAsStream().close();
                 }
             }
-        } catch (IOException e) {
-            Log_OC.e(TAG, "Error reading file", e);
+
+            return Boolean.TRUE;
+        } catch (Exception e) {
+            Log_OC.e(TAG, "Error downloading file", e);
+            return Boolean.FALSE;
         } finally {
             if (getMethod != null) {
                 getMethod.releaseConnection();
             }
-            if (fos != null) {
-                try {
-                    fos.close();
-                } catch (IOException e) {
-                    Log_OC.e(TAG, "Error closing file output stream", e);
-                }
-            }
         }
-
-        return Boolean.TRUE;
     }
 
     @Override
@@ -143,7 +129,7 @@ public class PrintAsyncTask extends AsyncTask<Void, Void, Boolean> {
         PrintManager printManager = (PrintManager) richDocumentsWebView.getSystemService(PRINT_SERVICE);
 
         if (!result || printManager == null) {
-            DisplayUtils.showSnackMessage(richDocumentsWebView,
+            SnackbarUtil.show(richDocumentsWebView,
                                           richDocumentsWebView.getString(R.string.failed_to_print));
 
             return;

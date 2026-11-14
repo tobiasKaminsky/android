@@ -1,44 +1,29 @@
 /*
+ * Nextcloud - Android Client
  *
- * Nextcloud Android client application
- *
- * @author Tobias Kaminsky
- * Copyright (C) 2020 Tobias Kaminsky
- * Copyright (C) 2020 Nextcloud GmbH
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2025 Alper Ozturk <alper.ozturk@nextcloud.com>
+ * SPDX-FileCopyrightText: 2020 Tobias Kaminsky <tobias@kaminsky.me>
+ * SPDX-FileCopyrightText: 2020 Nextcloud GmbH
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.ui.activity
 
 import android.content.Intent
-import androidx.test.espresso.intent.rule.IntentsTestRule
-import com.nextcloud.test.GrantStoragePermissionRule
+import androidx.test.core.app.launchActivity
+import androidx.test.espresso.Espresso.onView
+import androidx.test.espresso.assertion.ViewAssertions.matches
+import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
+import androidx.test.espresso.matcher.ViewMatchers.isRoot
 import com.owncloud.android.AbstractIT
 import com.owncloud.android.utils.FileStorageUtils
 import com.owncloud.android.utils.ScreenshotTest
 import org.junit.After
 import org.junit.Before
-import org.junit.Rule
 import org.junit.Test
 import java.io.File
 
 class UploadFilesActivityIT : AbstractIT() {
-    @get:Rule
-    var activityRule = IntentsTestRule(UploadFilesActivity::class.java, true, false)
-
-    @get:Rule
-    var permissionRule = GrantStoragePermissionRule.grant()
+    private val testClassName = "com.owncloud.android.ui.activity.UploadFilesActivityIT"
 
     private val directories = listOf("A", "B", "C", "D")
         .map { File("${FileStorageUtils.getTemporalPath(account.name)}${File.separator}$it") }
@@ -56,57 +41,103 @@ class UploadFilesActivityIT : AbstractIT() {
     @Test
     @ScreenshotTest
     fun noneSelected() {
-        val sut: UploadFilesActivity = activityRule.launchActivity(null)
+        launchActivity<UploadFilesActivity>().use { scenario ->
+            scenario.onActivity { sut ->
+                sut.fileListFragment.setFiles(
+                    directories +
+                        listOf(
+                            File("1.txt"),
+                            File("2.pdf"),
+                            File("3.mp3")
+                        )
+                )
+            }
 
-        sut.runOnUiThread {
-            sut.fileListFragment.setFiles(
-                directories +
-                    listOf(
-                        File("1.txt"),
-                        File("2.pdf"),
-                        File("3.mp3")
-                    )
-            )
+            val screenShotName = createName(testClassName + "_" + "noneSelected", "")
+            onView(isRoot()).check(matches(isDisplayed()))
+
+            scenario.onActivity { sut ->
+                screenshotViaName(sut.fileListFragment.binding?.listRoot, screenShotName)
+            }
         }
-
-        waitForIdleSync()
-        shortSleep()
-
-        screenshot(sut)
     }
 
     @Test
     @ScreenshotTest
     fun localFolderPickerMode() {
-        val sut: UploadFilesActivity = activityRule.launchActivity(
-            Intent().apply {
-                putExtra(
-                    UploadFilesActivity.KEY_LOCAL_FOLDER_PICKER_MODE,
-                    true
-                )
-                putExtra(
-                    UploadFilesActivity.REQUEST_CODE_KEY,
-                    FileDisplayActivity.REQUEST_CODE__SELECT_FILES_FROM_FILE_SYSTEM
-                )
-            }
-        )
-
-        sut.runOnUiThread {
-            sut.fileListFragment.setFiles(
-                directories
+        val intent = Intent(targetContext, UploadFilesActivity::class.java).apply {
+            putExtra(
+                UploadFilesActivity.KEY_LOCAL_FOLDER_PICKER_MODE,
+                true
+            )
+            putExtra(
+                UploadFilesActivity.REQUEST_CODE_KEY,
+                FileDisplayActivity.REQUEST_CODE__SELECT_FILES_FROM_FILE_SYSTEM
             )
         }
 
-        waitForIdleSync()
+        launchActivity<UploadFilesActivity>(intent).use { scenario ->
+            scenario.onActivity { sut ->
+                sut.fileListFragment.setFiles(
+                    directories
+                )
+            }
 
-        screenshot(sut)
+            val screenShotName = createName(testClassName + "_" + "localFolderPickerMode", "")
+            onView(isRoot()).check(matches(isDisplayed()))
+
+            scenario.onActivity { sut ->
+                screenshotViaName(sut, screenShotName)
+            }
+        }
     }
 
-    fun fileSelected() {
-        val sut: UploadFilesActivity = activityRule.launchActivity(null)
+    @Test
+    @ScreenshotTest
+    fun search() {
+        launchActivity<UploadFilesActivity>().use { scenario ->
+            scenario.onActivity { sut ->
+                sut.fileListFragment.performSearch("1.txt", arrayListOf(), false)
+                sut.fileListFragment.setFiles(
+                    directories +
+                        listOf(
+                            File("1.txt"),
+                            File("2.pdf"),
+                            File("3.mp3")
+                        )
+                )
+            }
 
-        // TODO select one
+            val screenShotName = createName(testClassName + "_" + "search", "")
+            onView(isRoot()).check(matches(isDisplayed()))
 
-        screenshot(sut)
+            scenario.onActivity { sut ->
+                screenshotViaName(sut, screenShotName)
+            }
+        }
+    }
+
+    @Test
+    @ScreenshotTest
+    fun selectAll() {
+        launchActivity<UploadFilesActivity>().use { scenario ->
+            scenario.onActivity { sut ->
+                sut.fileListFragment.setFiles(
+                    listOf(
+                        File("1.txt"),
+                        File("2.pdf"),
+                        File("3.mp3")
+                    )
+                )
+                sut.fileListFragment.selectAllFiles(true)
+            }
+
+            val screenShotName = createName(testClassName + "_" + "selectAll", "")
+            onView(isRoot()).check(matches(isDisplayed()))
+
+            scenario.onActivity { sut ->
+                screenshotViaName(sut.fileListFragment.binding?.listRoot, screenShotName)
+            }
+        }
     }
 }

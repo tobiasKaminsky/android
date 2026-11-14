@@ -1,25 +1,10 @@
 /*
+ * Nextcloud - Android Client
  *
- * Nextcloud Android client application
- *
- * @author Tobias Kaminsky
- * Copyright (C) 2020 Tobias Kaminsky
- * Copyright (C) 2020 Nextcloud GmbH
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2020 Tobias Kaminsky <tobias@kaminsky.me>
+ * SPDX-FileCopyrightText: 2020 Nextcloud GmbH
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
-
 package com.nextcloud.test
 
 import com.owncloud.android.BuildConfig
@@ -40,11 +25,8 @@ class RetryTestRule(val retryCount: Int = defaultRetryValue) : TestRule {
         private val defaultRetryValue: Int = if (BuildConfig.CI) 5 else 1
     }
 
-    override fun apply(base: Statement, description: Description): Statement {
-        return statement(base, description)
-    }
+    override fun apply(base: Statement, description: Description): Statement = statement(base, description)
 
-    @Suppress("TooGenericExceptionCaught") // and this exactly what we want here
     private fun statement(base: Statement, description: Description): Statement {
         return object : Statement() {
 

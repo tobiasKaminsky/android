@@ -1,60 +1,50 @@
 /*
+ * Nextcloud - Android Client
  *
- * Nextcloud Android client application
- *
- * @author Tobias Kaminsky
- * Copyright (C) 2020 Tobias Kaminsky
- * Copyright (C) 2020 Nextcloud GmbH
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2025 Alper Ozturk <alper.ozturk@nextcloud.com>
+ * SPDX-FileCopyrightText: 2020 Tobias Kaminsky <tobias@kaminsky.me>
+ * SPDX-FileCopyrightText: 2020 Nextcloud GmbH
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.ui.dialog
 
 import androidx.fragment.app.FragmentManager
-import androidx.test.espresso.intent.rule.IntentsTestRule
-import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.core.app.launchActivity
+import androidx.test.espresso.Espresso.onView
+import androidx.test.espresso.assertion.ViewAssertions.matches
+import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
+import androidx.test.espresso.matcher.ViewMatchers.isRoot
 import com.nextcloud.test.TestActivity
 import com.owncloud.android.AbstractIT
 import com.owncloud.android.datamodel.OCFile
 import com.owncloud.android.lib.resources.status.OCCapability
 import com.owncloud.android.utils.ScreenshotTest
-import org.junit.Rule
 import org.junit.Test
 
 class SendShareDialogTest : AbstractIT() {
-    @get:Rule
-    val testActivityRule = IntentsTestRule(TestActivity::class.java, true, false)
+    private val testClassName = "com.owncloud.android.ui.dialog.SendShareDialogTest"
 
     @Test
     @ScreenshotTest
     fun showDialog() {
-        val activity = testActivityRule.launchActivity(null)
+        launchActivity<TestActivity>().use { scenario ->
+            var sut: SendShareDialog? = null
+            scenario.onActivity { activity ->
+                val fm: FragmentManager = activity.supportFragmentManager
+                val ft = fm.beginTransaction()
+                ft.addToBackStack(null)
+                fm.executePendingTransactions()
+                val file = OCFile("/1.jpg").apply {
+                    mimeType = "image/jpg"
+                }
 
-        val fm: FragmentManager = activity.supportFragmentManager
-        val ft = fm.beginTransaction()
-        ft.addToBackStack(null)
+                sut = SendShareDialog.newInstance(file, false, OCCapability())
+                sut.show(ft, "TAG_SEND_SHARE_DIALOG")
+            }
 
-        val file = OCFile("/1.jpg").apply {
-            mimeType = "image/jpg"
+            val screenShotName = createName(testClassName + "_" + "showDialog", "")
+            onView(isRoot()).check(matches(isDisplayed()))
+            screenshotViaName(sut!!.requireDialog().window?.decorView, screenShotName)
         }
-
-        val sut = SendShareDialog.newInstance(file, false, OCCapability())
-        sut.show(ft, "TAG_SEND_SHARE_DIALOG")
-
-        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
-        shortSleep()
-        shortSleep()
-        sut.requireDialog().window?.decorView.let { screenshot(it) }
     }
 }

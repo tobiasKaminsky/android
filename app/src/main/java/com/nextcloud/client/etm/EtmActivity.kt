@@ -1,21 +1,8 @@
 /*
- * Nextcloud Android client application
+ * Nextcloud - Android Client
  *
- * @author Chris Narkiewicz
- * Copyright (C) 2019 Chris Narkiewicz <hello@ezaquarii.com>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2019 Chris Narkiewicz <hello@ezaquarii.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.etm
 
@@ -23,15 +10,19 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.view.MenuItem
+import androidx.activity.OnBackPressedCallback
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import com.nextcloud.client.di.Injectable
 import com.nextcloud.client.di.ViewModelFactory
 import com.owncloud.android.R
 import com.owncloud.android.ui.activity.ToolbarActivity
+import com.owncloud.android.ui.navigation.model.ActionBarStyle
 import javax.inject.Inject
 
-class EtmActivity : ToolbarActivity(), Injectable {
+class EtmActivity :
+    ToolbarActivity(),
+    Injectable {
 
     companion object {
         @JvmStatic
@@ -48,8 +39,8 @@ class EtmActivity : ToolbarActivity(), Injectable {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_etm)
-        setupToolbar()
-        updateActionBarTitleAndHomeButtonByString(getString(R.string.etm_title))
+        showActionBar(ActionBarStyle.Plain)
+        setActionBarTitle(getString(R.string.etm_title))
         vm = ViewModelProvider(this, viewModelFactory).get(EtmViewModel::class.java)
         vm.currentPage.observe(
             this,
@@ -57,25 +48,31 @@ class EtmActivity : ToolbarActivity(), Injectable {
                 onPageChanged(it)
             }
         )
+        handleOnBackPressed()
     }
 
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        return when (item.itemId) {
-            android.R.id.home -> {
-                if (!vm.onBackPressed()) {
-                    finish()
-                }
-                true
+    override fun onOptionsItemSelected(item: MenuItem): Boolean = when (item.itemId) {
+        android.R.id.home -> {
+            if (!vm.onBackPressed()) {
+                finish()
             }
-            else -> super.onOptionsItemSelected(item)
+            true
         }
+
+        else -> super.onOptionsItemSelected(item)
     }
 
-    @Deprecated("Deprecated in Java")
-    override fun onBackPressed() {
-        if (!vm.onBackPressed()) {
-            super.onBackPressed()
-        }
+    private fun handleOnBackPressed() {
+        onBackPressedDispatcher.addCallback(object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                val handledByVm = vm.onBackPressed()
+
+                if (!handledByVm) {
+                    isEnabled = false
+                    onBackPressedDispatcher.onBackPressed()
+                }
+            }
+        })
     }
 
     private fun onPageChanged(page: EtmMenuEntry?) {
@@ -84,12 +81,12 @@ class EtmActivity : ToolbarActivity(), Injectable {
             supportFragmentManager.beginTransaction()
                 .replace(R.id.etm_page_container, fragment)
                 .commit()
-            updateActionBarTitleAndHomeButtonByString("ETM - ${getString(page.titleRes)}")
+            setActionBarTitle("ETM - ${getString(page.titleRes)}")
         } else {
             supportFragmentManager.beginTransaction()
                 .replace(R.id.etm_page_container, EtmMenuFragment())
                 .commitNow()
-            updateActionBarTitleAndHomeButtonByString(getString(R.string.etm_title))
+            setActionBarTitle(getString(R.string.etm_title))
         }
     }
 }

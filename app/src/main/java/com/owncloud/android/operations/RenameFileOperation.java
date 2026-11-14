@@ -1,24 +1,13 @@
 /*
- *   ownCloud Android client application
+ * Nextcloud - Android Client
  *
- *   @author David A. Velasco
- *   @author masensio
- *   Copyright (C) 2015 ownCloud Inc.
- *
- *   This program is free software: you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License version 2,
- *   as published by the Free Software Foundation.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * SPDX-FileCopyrightText: 2020-2021 Tobias Kaminsky <tobias@kaminsky.me>
+ * SPDX-FileCopyrightText: 2018-2019 Andy Scherzinger <info@andy-scherzinger>
+ * SPDX-FileCopyrightText: 2015 ownCloud Inc.
+ * SPDX-FileCopyrightText: 2015 María Asensio Valverde <masensio@solidgear.es>
+ * SPDX-FileCopyrightText: 2012 David A. Velasco <dvelasco@solidgear.es>
+ * SPDX-License-Identifier: GPL-2.0-only AND (AGPL-3.0-or-later OR GPL-2.0-only)
  */
-
 package com.owncloud.android.operations;
 
 import android.text.TextUtils;
@@ -36,7 +25,9 @@ import com.owncloud.android.utils.MimeTypeUtil;
 
 import java.io.File;
 import java.io.IOException;
-
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 /**
  * Remote operation performing the rename of a remote file (or folder?) in the ownCloud server.
@@ -100,8 +91,10 @@ public class RenameFileOperation extends SyncOperation {
             if (result.isSuccess()) {
                 if (file.isFolder()) {
                     getStorageManager().moveLocalFile(file, newRemotePath, parent);
-                    //saveLocalDirectory();
-
+                    file.setFileName(newName);
+                    if (!file.isEncrypted()) {
+                        file.setDecryptedRemotePath(newRemotePath);
+                    }
                 } else {
                     saveLocalFile(newRemotePath);
                 }
@@ -173,26 +166,32 @@ public class RenameFileOperation extends SyncOperation {
         }
         // create a test file
         String tmpFolderName = FileStorageUtils.getTemporalPath("");
-        File testFile = new File(tmpFolderName + newName);
-        File tmpFolder = testFile.getParentFile();
-        if (!tmpFolder.exists() && !tmpFolder.mkdirs()) {
-            Log_OC.e(TAG, "Unable to create parent folder " + tmpFolder.getAbsolutePath());
+        Path testFile = Paths.get(tmpFolderName, newName);
+        Path tmpFolder = testFile.getParent();
+        if (tmpFolder != null && !Files.exists(tmpFolder)) {
+            try {
+                Files.createDirectories(tmpFolder);
+            } catch (IOException e) {
+                Log_OC.e(TAG, "Unable to create parent folder " + tmpFolder.toAbsolutePath());
+            }
         }
-        if (!tmpFolder.isDirectory()) {
+        if (tmpFolder != null && !Files.isDirectory(tmpFolder)) {
             throw new IOException("Unexpected error: temporal directory could not be created");
         }
         try {
-            testFile.createNewFile();   // return value is ignored; it could be 'false' because
-            // the file already existed, that doesn't invalidate the name
-        } catch (IOException e) {
+            Files.createFile(testFile);
+        } catch (Exception e) {
             Log_OC.i(TAG, "Test for validity of name " + newName + " in the file system failed");
             return false;
         }
-        boolean result = testFile.exists() && testFile.isFile();
+        boolean result = Files.exists(testFile) && Files.isRegularFile(testFile);
 
-        // cleaning ; result is ignored, since there is not much we could do in case of failure,
-        // but repeat and repeat...
-        testFile.delete();
+        try {
+            Files.deleteIfExists(testFile);
+        } catch (Exception e) {
+            Log_OC.e("Error deleting file: ", e.getMessage());
+            return true;
+        }
 
         return result;
     }

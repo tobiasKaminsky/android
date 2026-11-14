@@ -1,36 +1,55 @@
 /*
- * Nextcloud Android client application
+ * Nextcloud - Android Client
  *
- *  @author Dariusz Olszewski
- *  Copyright (C) 2022 Dariusz Olszewski
- *  Copyright (C) 2022 Nextcloud GmbH
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE
- * License as published by the Free Software Foundation; either
- * version 3 of the License, or any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU AFFERO GENERAL PUBLIC LICENSE for more details.
- *
- * You should have received a copy of the GNU Affero General Public
- * License along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * SPDX-FileCopyrightText: 2022 Dariusz Olszewski <starypatyk@users.noreply.github.com>
+ * SPDX-FileCopyrightText: 2022 Nextcloud GmbH
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
-
 package com.nextcloud.client.database.dao
 
 import androidx.room.Dao
 import androidx.room.Query
+import androidx.room.Update
+import androidx.room.Upsert
 import com.nextcloud.client.database.entity.FileEntity
+import com.nextcloud.client.database.entity.model.FolderMetadataUpdate
 import com.owncloud.android.db.ProviderMeta.ProviderTableMeta
+import com.owncloud.android.utils.MimeType
 
 @Dao
 interface FileDao {
+    @Update
+    fun update(entity: FileEntity)
+
+    @Upsert
+    fun upsert(entity: FileEntity): Long
+
+    @Update(entity = FileEntity::class)
+    fun updateFolderMetadata(metadata: FolderMetadataUpdate)
+
+    @Query("DELETE FROM filelist WHERE _id = :id AND file_owner = :fileOwner AND path = :path")
+    fun deleteFile(id: Long, fileOwner: String, path: String): Int
+
+    @Query(
+        """
+    WITH RECURSIVE descendants(_id) AS (
+        SELECT _id FROM filelist WHERE parent = :folderId
+        UNION
+        SELECT f._id FROM filelist f
+        INNER JOIN descendants d ON f.parent = d._id
+    )
+    DELETE FROM filelist
+    WHERE _id IN (SELECT _id FROM descendants)
+        OR (_id = :folderId AND file_owner = :fileOwner AND path = :path)
+"""
+    )
+    fun deleteFolder(folderId: Long, fileOwner: String, path: String): Int
+
     @Query("SELECT * FROM filelist WHERE _id = :id LIMIT 1")
     fun getFileById(id: Long): FileEntity?
+
+    @Query("SELECT * FROM filelist WHERE local_id = :localId LIMIT 1")
+    fun getFileByLocalId(localId: Long): FileEntity?
 
     @Query("SELECT * FROM filelist WHERE path = :path AND file_owner = :fileOwner LIMIT 1")
     fun getFileByEncryptedRemotePath(path: String, fileOwner: String): FileEntity?
@@ -44,8 +63,14 @@ interface FileDao {
     @Query("SELECT * FROM filelist WHERE remote_id = :remoteId AND file_owner = :fileOwner LIMIT 1")
     fun getFileByRemoteId(remoteId: String, fileOwner: String): FileEntity?
 
+    @Query("SELECT * FROM filelist WHERE remote_id = :remoteId LIMIT 1")
+    suspend fun getFileByRemoteId(remoteId: String): FileEntity?
+
     @Query("SELECT * FROM filelist WHERE parent = :parentId ORDER BY ${ProviderTableMeta.FILE_DEFAULT_SORT_ORDER}")
     fun getFolderContent(parentId: Long): List<FileEntity>
+
+    @Query("SELECT * FROM filelist WHERE parent = :parentId ORDER BY ${ProviderTableMeta.FILE_DEFAULT_SORT_ORDER}")
+    suspend fun getFolderContentSuspended(parentId: Long): List<FileEntity>
 
     @Query(
         "SELECT * FROM filelist WHERE modified >= :startDate" +
@@ -56,9 +81,156 @@ interface FileDao {
     )
     fun getGalleryItems(startDate: Long, endDate: Long, fileOwner: String): List<FileEntity>
 
+    @Query(
+        "SELECT * FROM filelist WHERE modified >= :startDate" +
+            " AND modified < :endDate" +
+            " AND (content_type LIKE 'image/%' OR content_type LIKE 'video/%')" +
+            " AND file_owner = :fileOwner" +
+            " ORDER BY ${ProviderTableMeta.FILE_DEFAULT_SORT_ORDER}"
+    )
+    suspend fun getGalleryItemsSuspended(startDate: Long, endDate: Long, fileOwner: String): List<FileEntity>
+
+    @Query(
+        "SELECT * FROM filelist" +
+            " WHERE (content_type LIKE 'image/%' OR content_type LIKE 'video/%')" +
+            " AND file_owner = :fileOwner" +
+            " AND path LIKE :pathPrefix || '%'" +
+            " AND (:mimeFilter IS NULL OR content_type LIKE :mimeFilter)" +
+            " ORDER BY modified DESC, ${ProviderTableMeta._ID} DESC" +
+            " LIMIT :limit OFFSET :offset"
+    )
+    suspend fun getGalleryItemsPageSuspended(
+        fileOwner: String,
+        pathPrefix: String,
+        mimeFilter: String?,
+        limit: Int,
+        offset: Int
+    ): List<FileEntity>
+
     @Query("SELECT * FROM filelist WHERE file_owner = :fileOwner ORDER BY ${ProviderTableMeta.FILE_DEFAULT_SORT_ORDER}")
     fun getAllFiles(fileOwner: String): List<FileEntity>
 
     @Query("SELECT * FROM filelist WHERE path LIKE :pathPattern AND file_owner = :fileOwner ORDER BY path ASC")
     fun getFolderWithDescendants(pathPattern: String, fileOwner: String): List<FileEntity>
+
+    @Query("SELECT * FROM filelist where file_owner = :fileOwner AND etag_in_conflict IS NOT NULL")
+    fun getFilesWithSyncConflict(fileOwner: String): List<FileEntity>
+
+    @Query(
+        "SELECT * FROM filelist where file_owner = :fileOwner AND internal_two_way_sync_timestamp >= 0 " +
+            "ORDER BY internal_two_way_sync_timestamp DESC"
+    )
+    fun getInternalTwoWaySyncFolders(fileOwner: String): List<FileEntity>
+
+    @Query(
+        """
+    SELECT * 
+    FROM filelist 
+    WHERE parent = :parentId 
+      AND file_owner = :accountName 
+      AND is_encrypted = 0  
+      AND (content_type = :dirType OR content_type = :webdavType)  
+    ORDER BY ${ProviderTableMeta._ID} ASC
+    """
+    )
+    fun getNonEncryptedSubfolders(
+        parentId: Long,
+        accountName: String,
+        dirType: String = MimeType.DIRECTORY,
+        webdavType: String = MimeType.WEBDAV_FOLDER
+    ): List<FileEntity>
+
+    @Query(
+        """
+    SELECT NOT EXISTS (
+        SELECT 1
+        FROM filelist
+        WHERE parent = :parentId
+          AND file_owner = :accountName
+          AND content_type IS NOT NULL
+          AND content_type != '${MimeType.DIRECTORY}'
+          AND content_type != '${MimeType.WEBDAV_FOLDER}'
+          AND (media_path IS NULL OR TRIM(media_path) = '')
+    )
+"""
+    )
+    fun areAllFilesHaveMediaPath(parentId: Long, accountName: String): Boolean
+
+    @Query(
+        """
+    SELECT * 
+    FROM filelist 
+    WHERE file_owner = :fileOwner 
+      AND parent = :parentId
+      AND ${ProviderTableMeta.FILE_NAME} LIKE '%' || :query || '%'
+    ORDER BY ${ProviderTableMeta.FILE_DEFAULT_SORT_ORDER}
+    """
+    )
+    fun searchFilesInFolder(parentId: Long, fileOwner: String, query: String): List<FileEntity>
+
+    @Query(
+        """
+    SELECT *
+    FROM filelist
+    WHERE file_owner = :accountName
+      AND (
+          share_by_link = 1
+          OR shared_via_users = 1
+          OR permissions LIKE '%S%'
+      )
+    ORDER BY ${ProviderTableMeta.FILE_DEFAULT_SORT_ORDER}
+    """
+    )
+    suspend fun getSharedFiles(accountName: String): List<FileEntity>
+
+    @Query(
+        """
+    SELECT * 
+    FROM filelist 
+    WHERE file_owner = :fileOwner 
+      AND favorite = 1
+    ORDER BY ${ProviderTableMeta.FILE_DEFAULT_SORT_ORDER}
+    """
+    )
+    suspend fun getFavoriteFiles(fileOwner: String): List<FileEntity>
+
+    @Query(
+        """
+    SELECT * 
+    FROM filelist 
+    WHERE file_owner = :fileOwner 
+      AND favorite = 1
+    ORDER BY ${ProviderTableMeta.FILE_DEFAULT_SORT_ORDER}
+    """
+    )
+    fun getFavoriteFilesNonBlocking(fileOwner: String): List<FileEntity>
+
+    @Query("SELECT remote_id FROM filelist WHERE file_owner = :accountName AND remote_id IS NOT NULL")
+    fun getAllRemoteIds(accountName: String): List<String>
+
+    @Query(
+        """
+    WITH RECURSIVE descendants AS (
+        SELECT _id FROM filelist WHERE _id = :folderId AND file_owner = :fileOwner
+        UNION ALL
+        SELECT f._id FROM filelist f
+        INNER JOIN descendants d ON f.parent = d._id
+        WHERE f.file_owner = :fileOwner
+    )
+    DELETE FROM filelist WHERE _id IN (SELECT _id FROM descendants)
+"""
+    )
+    fun deleteFolderWithDescendants(fileOwner: String, folderId: Long): Int
+
+    @Query("DELETE FROM filelist WHERE file_owner = :fileOwner AND path = :remotePath")
+    fun deleteFileByRemotePath(fileOwner: String, remotePath: String): Int
+
+    @Query("DELETE FROM filelist WHERE file_owner = :fileOwner")
+    fun deleteAllFiles(fileOwner: String): Int
+
+    @Query("UPDATE filelist SET is_read_only = :readOnly WHERE file_owner = :fileOwner AND path = :path")
+    fun setReadOnly(fileOwner: String, path: String, readOnly: Int): Int
+
+    @Update
+    fun updateAll(entities: List<FileEntity>)
 }

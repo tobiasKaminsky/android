@@ -1,0 +1,453 @@
+/*
+ * Nextcloud - Android Client
+ *
+ * SPDX-FileCopyrightText: 2026 Alper Ozturk <alper.ozturk@nextcloud.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+package com.owncloud.android.ui.dialog
+
+import android.annotation.SuppressLint
+import android.app.Activity
+import android.app.Dialog
+import android.content.Intent
+import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
+import android.view.View
+import androidx.appcompat.app.AlertDialog
+import androidx.fragment.app.DialogFragment
+import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.GridLayoutManager
+import com.google.android.material.button.MaterialButton
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.nextcloud.client.account.CurrentAccountProvider
+import com.nextcloud.client.account.User
+import com.nextcloud.client.di.Injectable
+import com.nextcloud.client.network.ClientFactory
+import com.nextcloud.utils.SnackbarUtil
+import com.nextcloud.utils.extensions.getParcelableArgument
+import com.nextcloud.utils.extensions.getTypedActivity
+import com.nextcloud.utils.fileNameValidator.FileNameValidator
+import com.owncloud.android.MainApp
+import com.owncloud.android.R
+import com.owncloud.android.databinding.ChooseTemplateBinding
+import com.owncloud.android.datamodel.FileDataStorageManager
+import com.owncloud.android.datamodel.OCFile
+import com.owncloud.android.datamodel.Template
+import com.owncloud.android.files.CreateFileFromTemplateOperation
+import com.owncloud.android.files.FetchTemplateOperation
+import com.owncloud.android.lib.common.utils.Log_OC
+import com.owncloud.android.lib.resources.files.ReadFileRemoteOperation
+import com.owncloud.android.lib.resources.files.model.RemoteFile
+import com.owncloud.android.ui.activity.BaseActivity
+import com.owncloud.android.ui.activity.ExternalSiteWebView
+import com.owncloud.android.ui.activity.FileActivity
+import com.owncloud.android.ui.activity.RichDocumentsEditorWebView
+import com.owncloud.android.ui.adapter.RichDocumentsTemplateAdapter
+import com.owncloud.android.ui.dialog.IndeterminateProgressDialog.Companion.newInstance
+import com.owncloud.android.utils.FileStorageUtils
+import com.owncloud.android.utils.KeyboardUtils
+import com.owncloud.android.utils.NextcloudServer
+import com.owncloud.android.utils.theme.ViewThemeUtils
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import javax.inject.Inject
+
+class ChooseRichDocumentsTemplateDialogFragment :
+    DialogFragment(),
+    View.OnClickListener,
+    RichDocumentsTemplateAdapter.ClickListener,
+    Injectable {
+
+    private var fileNames: Set<String> = emptySet()
+    private var hasUserInteracted = false
+
+    @Inject
+    lateinit var currentAccount: CurrentAccountProvider
+
+    @Inject
+    lateinit var clientFactory: ClientFactory
+
+    @Inject
+    lateinit var viewThemeUtils: ViewThemeUtils
+
+    @Inject
+    lateinit var fileDataStorageManager: FileDataStorageManager
+
+    @Inject
+    lateinit var keyboardUtils: KeyboardUtils
+
+    private var adapter: RichDocumentsTemplateAdapter? = null
+    private var parentFolder: OCFile? = null
+    private var positiveButton: MaterialButton? = null
+    private var waitDialog: DialogFragment? = null
+
+    enum class Type {
+        DOCUMENT,
+        SPREADSHEET,
+        PRESENTATION
+    }
+
+    private lateinit var binding: ChooseTemplateBinding
+
+    override fun onStart() {
+        super.onStart()
+
+        val alertDialog = dialog as AlertDialog?
+
+        alertDialog?.let {
+            positiveButton = alertDialog.getButton(AlertDialog.BUTTON_POSITIVE) as? MaterialButton
+            positiveButton?.let {
+                viewThemeUtils.material.colorMaterialButtonPrimaryTonal(it)
+                it.setOnClickListener(this)
+                it.isEnabled = false
+            }
+
+            val negativeButton = alertDialog.getButton(AlertDialog.BUTTON_NEGATIVE) as? MaterialButton
+            negativeButton?.let {
+                viewThemeUtils.material.colorMaterialButtonPrimaryBorderless(negativeButton)
+            }
+        }
+
+        checkEnablingCreateButton()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        keyboardUtils.showKeyboardForEditText(requireDialog().window, binding.filename)
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        val inflater = requireActivity().layoutInflater
+        binding = ChooseTemplateBinding.inflate(inflater, null, false)
+    }
+
+    @Suppress("DEPRECATION")
+    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
+        val arguments = arguments ?: throw IllegalArgumentException("Arguments may not be null")
+        val activity = activity ?: throw IllegalArgumentException("Activity may not be null")
+
+        initFilenames(arguments)
+        viewThemeUtils.material.colorTextInputLayout(binding.filenameContainer)
+
+        val type = Type.valueOf(arguments.getString(ARG_TYPE) ?: "")
+
+        lifecycleScope.launch {
+            fetchTemplate(type)
+        }
+
+        initList(type)
+        addTextChangeListener()
+
+        val titleTextId = getTitle(type)
+        val builder = getDialogBuilder(activity, titleTextId)
+        return builder.create()
+    }
+
+    private fun initFilenames(arguments: Bundle) {
+        parentFolder = arguments.getParcelableArgument(ARG_PARENT_FOLDER, OCFile::class.java)
+        fileNames = fileDataStorageManager
+            .getFolderContent(parentFolder, false)
+            .mapTo(HashSet()) { it.fileName }
+    }
+
+    private fun initList(type: Type) {
+        binding.list.setHasFixedSize(true)
+        binding.list.layoutManager = GridLayoutManager(activity, 2)
+        adapter = RichDocumentsTemplateAdapter(
+            currentAccount,
+            type,
+            this,
+            context,
+            viewThemeUtils
+        )
+        binding.list.adapter = adapter
+    }
+
+    private fun addTextChangeListener() {
+        binding.filename.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) = Unit
+            override fun onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) = Unit
+            override fun afterTextChanged(s: Editable) {
+                hasUserInteracted = true
+                checkEnablingCreateButton()
+            }
+        })
+    }
+
+    private fun getDialogBuilder(activity: Activity, titleTextId: Int): MaterialAlertDialogBuilder {
+        val builder = MaterialAlertDialogBuilder(activity)
+            .setView(binding.root)
+            .setPositiveButton(R.string.create, null)
+            .setNegativeButton(R.string.common_cancel, null)
+            .setTitle(titleTextId)
+
+        viewThemeUtils.dialog.colorMaterialAlertDialogBackground(activity, builder)
+
+        return builder
+    }
+
+    private fun getTitle(type: Type): Int = when (type) {
+        Type.DOCUMENT -> {
+            R.string.create_new_document
+        }
+
+        Type.SPREADSHEET -> {
+            R.string.create_new_spreadsheet
+        }
+
+        Type.PRESENTATION -> {
+            R.string.create_new_presentation
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun createFromTemplate(template: Template, path: String) {
+        waitDialog = newInstance(R.string.wait_a_moment, false).also {
+            it.show(parentFragmentManager, WAIT_DIALOG_TAG)
+        }
+
+        lifecycleScope.launch {
+            createFileFromTemplate(template, path, currentAccount.user)
+        }
+    }
+
+    @SuppressLint("NotifyDataSetChanged")
+    fun setTemplateList(templateList: List<Template>?) {
+        adapter?.let {
+            it.setTemplateList(templateList)
+            it.notifyDataSetChanged()
+        }
+    }
+
+    private val fileNameText: String
+        get() {
+            var result = ""
+
+            val text = binding.filename.text
+
+            if (text != null) {
+                result = text.toString()
+            }
+
+            return result
+        }
+
+    override fun onClick(v: View) {
+        val selectedTemplate = adapter?.selectedTemplate
+            ?: return SnackbarUtil.show(binding.list, R.string.select_one_template)
+
+        val state = resolveFilenameState()
+        when (state) {
+            is FilenameState.Invalid ->
+                SnackbarUtil.show(requireActivity(), state.errorMessage)
+
+            is FilenameState.JustExtension ->
+                SnackbarUtil.show(binding.list, R.string.enter_filename)
+
+            is FilenameState.Valid -> {
+                val name = fileNameText
+                val path = parentFolder?.remotePath + name
+                if (!name.endsWith(selectedTemplate.extension)) {
+                    createFromTemplate(selectedTemplate, path + DOT + selectedTemplate.extension)
+                } else {
+                    createFromTemplate(selectedTemplate, path)
+                }
+            }
+
+            else -> Unit
+        }
+    }
+
+    override fun onClick(template: Template) {
+        onTemplateChosen(template)
+    }
+
+    private fun onTemplateChosen(template: Template) {
+        adapter?.setTemplateAsActive(template)
+        prefillFilenameIfEmpty(template)
+        checkEnablingCreateButton()
+    }
+
+    private fun prefillFilenameIfEmpty(template: Template) {
+        val name = fileNameText
+
+        if (name.isEmpty() || name.equals(DOT + template.extension, ignoreCase = true)) {
+            binding.filename.setText(String.format("%s.%s", template.name, template.extension))
+        }
+
+        val dotIndex = binding.filename.text?.lastIndexOf('.') ?: -1
+        if (dotIndex >= 0) {
+            binding.filename.setSelection(dotIndex)
+        }
+    }
+
+    // region filename state
+    private sealed class FilenameState(val isError: Boolean, val errorMessage: String?) {
+        data object Valid : FilenameState(isError = false, errorMessage = null)
+        data object NoTemplateSelected : FilenameState(isError = false, errorMessage = null)
+        class JustExtension(message: String) : FilenameState(isError = true, errorMessage = message)
+        class ChangedExtension(message: String) : FilenameState(isError = true, errorMessage = message)
+        class Invalid(message: String) : FilenameState(isError = true, errorMessage = message)
+    }
+
+    private fun resolveFilenameState(): FilenameState {
+        val selectedTemplate = adapter?.selectedTemplate ?: return FilenameState.NoTemplateSelected
+        val name = fileNameText
+
+        val errorMessage = FileNameValidator.checkFileName(
+            name,
+            fileDataStorageManager.getCapability(currentAccount.user),
+            requireContext(),
+            fileNames ?: setOf()
+        )
+
+        return when {
+            errorMessage != null -> FilenameState.Invalid(errorMessage)
+
+            name.equals(DOT + selectedTemplate.extension, ignoreCase = true) ->
+                FilenameState.JustExtension(getString(R.string.filename_empty))
+
+            name.contains(DOT) &&
+                name.substringAfterLast(DOT).isNotEmpty() &&
+                name.substringAfterLast(DOT) != selectedTemplate.extension ->
+                FilenameState.ChangedExtension(getString(R.string.extension_cannot_be_changed))
+
+            else -> FilenameState.Valid
+        }
+    }
+
+    private fun checkEnablingCreateButton() {
+        val positiveButton = positiveButton ?: return
+        val state = resolveFilenameState()
+
+        val isEnabled = state is FilenameState.Valid
+        positiveButton.isEnabled = isEnabled
+        positiveButton.isClickable = isEnabled
+
+        if (!hasUserInteracted) return
+
+        binding.filenameContainer.isErrorEnabled = state.isError
+        binding.filenameContainer.error = state.errorMessage
+    }
+    // endregion
+
+    // region remote operations
+    @Suppress("DEPRECATION")
+    private suspend fun createFileFromTemplate(template: Template, path: String, user: User) =
+        withContext(Dispatchers.IO) {
+            val activity = getTypedActivity(BaseActivity::class.java)
+            val client = activity?.clientRepository?.getOwncloudClient() ?: return@withContext
+
+            val url = CreateFileFromTemplateOperation(path, template.id)
+                .execute(client)
+                .takeIf { it.isSuccess }
+                ?.data?.get(0)?.toString()
+                ?: run {
+                    showErrorOnMain(R.string.error_creating_file_from_template)
+                    return@withContext
+                }
+
+            val file = ReadFileRemoteOperation(path)
+                .execute(client)
+                .takeIf { it.isSuccess }
+                ?.data?.get(0)
+                ?.let { FileStorageUtils.fillOCFile(it as RemoteFile) }
+                ?.also { FileDataStorageManager(user, requireContext().contentResolver).saveFile(it) }
+                ?.let { FileDataStorageManager(user, requireContext().contentResolver).getFileByPath(path) }
+                ?: run {
+                    showErrorOnMain(R.string.error_creating_file_from_template)
+                    return@withContext
+                }
+
+            withContext(Dispatchers.Main) {
+                if (!isAdded) {
+                    Log_OC.e(TAG, "Error creating file from template!")
+                    return@withContext
+                }
+
+                waitDialog?.dismiss()
+
+                val intent = Intent(MainApp.getAppContext(), RichDocumentsEditorWebView::class.java).apply {
+                    putExtra(ExternalSiteWebView.EXTRA_TITLE, "Collabora")
+                    putExtra(ExternalSiteWebView.EXTRA_URL, url)
+                    putExtra(FileActivity.EXTRA_FILE, file)
+                    putExtra(ExternalSiteWebView.EXTRA_SHOW_SIDEBAR, false)
+                    putExtra(ExternalSiteWebView.EXTRA_TEMPLATE, template)
+                }
+
+                startActivity(intent)
+                dismiss()
+            }
+        }
+
+    private suspend fun showErrorOnMain(stringRes: Int) = withContext(Dispatchers.Main) {
+        if (!isAdded) return@withContext
+        waitDialog?.dismiss()
+        dismiss()
+        SnackbarUtil.show(requireActivity(), stringRes)
+    }
+
+    @Suppress("DEPRECATION")
+    @SuppressLint("SetTextI18n")
+    private suspend fun fetchTemplate(type: Type) = withContext(Dispatchers.IO) {
+        val activity = getTypedActivity(BaseActivity::class.java)
+        val client = activity?.clientRepository?.getOwncloudClient() ?: return@withContext
+
+        val templateList = FetchTemplateOperation(type)
+            .execute(client)
+            .takeIf { it.isSuccess }
+            ?.data
+            ?.filterIsInstance<Template>()
+            ?: return@withContext
+
+        if (!isAdded) {
+            Log_OC.e(TAG, "Error streaming file: no previewMediaFragment!")
+            return@withContext
+        }
+
+        withContext(Dispatchers.Main) {
+            if (templateList.isEmpty()) {
+                dismiss()
+                SnackbarUtil.show(requireActivity(), R.string.error_retrieving_templates)
+                return@withContext
+            }
+
+            when (templateList.size) {
+                SINGLE_TEMPLATE -> {
+                    onTemplateChosen(templateList[0])
+                    binding.list.visibility = View.GONE
+                }
+
+                else -> {
+                    binding.filename.setText(DOT + templateList[0].extension)
+                    binding.helperText.visibility = View.VISIBLE
+                }
+            }
+
+            setTemplateList(templateList)
+        }
+    }
+    // endregion
+
+    companion object {
+        private const val ARG_PARENT_FOLDER = "PARENT_FOLDER"
+        private const val ARG_TYPE = "TYPE"
+        private val TAG: String = ChooseRichDocumentsTemplateDialogFragment::class.java.simpleName
+        private const val DOT = "."
+        const val SINGLE_TEMPLATE: Int = 1
+        private const val WAIT_DIALOG_TAG = "WAIT"
+
+        @JvmStatic
+        @NextcloudServer(max = 18) // will be removed in favor of generic direct editing
+        fun newInstance(parentFolder: OCFile?, type: Type): ChooseRichDocumentsTemplateDialogFragment =
+            ChooseRichDocumentsTemplateDialogFragment().apply {
+                arguments = Bundle().apply {
+                    putParcelable(ARG_PARENT_FOLDER, parentFolder)
+                    putString(ARG_TYPE, type.name)
+                }
+            }
+    }
+}

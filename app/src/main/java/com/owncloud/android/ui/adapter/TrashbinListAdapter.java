@@ -1,22 +1,10 @@
 /*
- * Nextcloud Android client application
+ * Nextcloud - Android Client
  *
- * @author Tobias Kaminsky
- * Copyright (C) 2018 Tobias Kaminsky
- * Copyright (C) 2018 Nextcloud GmbH.
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2024 TSI-mc <surinder.kumar@t-systems.com>
+ * SPDX-FileCopyrightText: 2018 Tobias Kaminsky
+ * SPDX-FileCopyrightText: 2018 Nextcloud GmbH
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.ui.adapter;
 
@@ -29,27 +17,39 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 
+import com.nextcloud.android.common.ui.theme.utils.ColorRole;
 import com.nextcloud.client.account.User;
 import com.nextcloud.client.preferences.AppPreferences;
+import com.nextcloud.utils.AppConstants;
+import com.nextcloud.utils.HumanReadableFormatter;
+import com.nextcloud.utils.extensions.FileExtensionsKt;
+import com.nextcloud.utils.extensions.ViewExtensionsKt;
+import com.nextcloud.utils.text.DisplayTextFormatter;
+import com.nextcloud.utils.thumbnail.VideoOverlayGenerator;
 import com.owncloud.android.R;
 import com.owncloud.android.databinding.ListFooterBinding;
 import com.owncloud.android.databinding.TrashbinItemBinding;
 import com.owncloud.android.datamodel.FileDataStorageManager;
+import com.owncloud.android.datamodel.SyncedFolderProvider;
 import com.owncloud.android.datamodel.ThumbnailsCacheManager;
 import com.owncloud.android.lib.common.utils.Log_OC;
 import com.owncloud.android.lib.resources.trashbin.model.TrashbinFile;
 import com.owncloud.android.ui.interfaces.TrashbinActivityInterface;
-import com.owncloud.android.utils.DisplayUtils;
 import com.owncloud.android.utils.FileSortOrder;
 import com.owncloud.android.utils.MimeTypeUtil;
 import com.owncloud.android.utils.theme.ViewThemeUtils;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
+import static com.nextcloud.utils.extensions.ViewExtensionsKt.createRoundedOutline;
 import static com.owncloud.android.datamodel.OCFile.PATH_SEPARATOR;
 import static com.owncloud.android.datamodel.OCFile.ROOT_PATH;
 
@@ -70,11 +70,16 @@ public class TrashbinListAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
     private final AppPreferences preferences;
     private final List<ThumbnailsCacheManager.ThumbnailGenerationTask> asyncTasks = new ArrayList<>();
     private final ViewThemeUtils viewThemeUtils;
+    private final SyncedFolderProvider syncedFolderProvider;
+
+    private final Set<TrashbinFile> checkedFiles = new HashSet<>();
+    private boolean isMultiSelect = false;
 
     public TrashbinListAdapter(
         TrashbinActivityInterface trashbinActivityInterface,
         FileDataStorageManager storageManager,
         AppPreferences preferences,
+        SyncedFolderProvider syncedFolderProvider,
         Context context,
         User user,
         ViewThemeUtils viewThemeUtils
@@ -85,9 +90,11 @@ public class TrashbinListAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
         this.storageManager = storageManager;
         this.preferences = preferences;
         this.context = context;
+        this.syncedFolderProvider = syncedFolderProvider;
         this.viewThemeUtils = viewThemeUtils;
     }
 
+    @SuppressLint("NotifyDataSetChanged")
     public void setTrashbinFiles(List<TrashbinFile> trashbinFiles, boolean clear) {
         if (clear) {
             files.clear();
@@ -96,7 +103,7 @@ public class TrashbinListAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
         files.addAll(trashbinFiles);
 
         files = preferences.getSortOrderByType(FileSortOrder.Type.trashBinView,
-                                               FileSortOrder.sort_new_to_old).sortTrashbinFiles(files);
+                                               FileSortOrder.SORT_NEW_TO_OLD).sortTrashbinFiles(files);
 
         notifyDataSetChanged();
     }
@@ -117,12 +124,12 @@ public class TrashbinListAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
 
     @Override
     public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
-        if (holder instanceof TrashbinFileViewHolder) {
-            final TrashbinFileViewHolder trashbinFileViewHolder = (TrashbinFileViewHolder) holder;
+        if (holder instanceof TrashbinFileViewHolder trashbinFileViewHolder) {
             TrashbinFile file = files.get(position);
 
             // layout
             trashbinFileViewHolder.binding.ListItemLayout.setOnClickListener(v -> trashbinActivityInterface.onItemClicked(file));
+            trashbinFileViewHolder.binding.ListItemLayout.setOnLongClickListener(v -> trashbinActivityInterface.onLongItemClicked(file));
 
             // thumbnail
             trashbinFileViewHolder.binding.thumbnail.setTag(file.getRemoteId());
@@ -132,7 +139,7 @@ public class TrashbinListAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
             trashbinFileViewHolder.binding.Filename.setText(file.getFileName());
 
             // fileSize
-            trashbinFileViewHolder.binding.fileSize.setText(DisplayUtils.bytesToHumanReadable(file.getFileLength()));
+            trashbinFileViewHolder.binding.fileSize.setText(HumanReadableFormatter.formatBytes(file.getFileLength()));
 
             // originalLocation
             String location;
@@ -145,19 +152,49 @@ public class TrashbinListAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
             trashbinFileViewHolder.binding.originalLocation.setText(location);
 
             // deletion time
-            trashbinFileViewHolder.binding.deletionTimestamp.setText(DisplayUtils.getRelativeTimestamp(context,
-                    file.getDeletionTimestamp() * 1000));
+            long deletionTimestampMillis = file.getDeletionTimestamp() * AppConstants.MILLIS_PER_SECOND;
+            trashbinFileViewHolder.binding.deletionTimestamp.setText(
+                DisplayTextFormatter.formatRelativeTimestamp(context, deletionTimestampMillis));
 
             // checkbox
-            trashbinFileViewHolder.binding.customCheckbox.setVisibility(View.GONE);
+            if (isCheckedFile(file)) {
+                trashbinFileViewHolder.binding.customCheckbox.setImageDrawable(
+                    viewThemeUtils.platform.tintDrawable(context, R.drawable.ic_checkbox_marked, ColorRole.PRIMARY));
+            } else {
+                trashbinFileViewHolder.binding.customCheckbox.setImageResource(R.drawable.ic_checkbox_blank_outline);
+            }
+
+            trashbinFileViewHolder.binding.customCheckbox.setVisibility(isMultiSelect ? View.VISIBLE : View.GONE);
+            trashbinFileViewHolder.binding.restore.setVisibility(isMultiSelect ? View.GONE : View.VISIBLE);
+            ViewExtensionsKt.setVisibleIf(trashbinFileViewHolder.binding.overflowMenu, !isMultiSelect());
 
             // overflow menu
             trashbinFileViewHolder.binding.overflowMenu.setOnClickListener(v ->
                     trashbinActivityInterface.onOverflowIconClicked(file, v));
 
             // restore button
-            trashbinFileViewHolder.binding.restore.setOnClickListener(v ->
-                    trashbinActivityInterface.onRestoreIconClicked(file, v));
+            trashbinFileViewHolder.binding.restore.setOnClickListener(v -> trashbinActivityInterface.onRestoreIconClicked(file));
+
+            float cornerRadius = context.getResources().getDimension(R.dimen.selected_grid_container_radius);
+
+            boolean isDarkModeActive = (syncedFolderProvider.preferences.isDarkModeEnabled());
+            int selectedItemBackgroundColorId;
+            if (isDarkModeActive) {
+                selectedItemBackgroundColorId = R.color.action_mode_background;
+            } else {
+                selectedItemBackgroundColorId = R.color.selected_item_background;
+            }
+
+            int itemLayoutBackgroundColorId;
+            if (isCheckedFile(file)) {
+                itemLayoutBackgroundColorId = selectedItemBackgroundColorId;
+            } else {
+                itemLayoutBackgroundColorId = R.color.bg_default;
+            }
+
+            trashbinFileViewHolder.binding.ListItemLayout.setOutlineProvider(createRoundedOutline(context, cornerRadius));
+            trashbinFileViewHolder.binding.ListItemLayout.setClipToOutline(true);
+            trashbinFileViewHolder.binding.ListItemLayout.setBackgroundColor(ContextCompat.getColor(context, itemLayoutBackgroundColorId));
 
         } else {
             TrashbinFooterViewHolder trashbinFooterViewHolder = (TrashbinFooterViewHolder) holder;
@@ -175,6 +212,7 @@ public class TrashbinListAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
         }
     }
 
+    @SuppressLint("NotifyDataSetChanged")
     public void removeAllFiles() {
         files.clear();
         notifyDataSetChanged();
@@ -219,31 +257,32 @@ public class TrashbinListAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
 
     private void setThumbnail(TrashbinFile file, ImageView thumbnailView) {
         if (file.isFolder()) {
-            thumbnailView.setImageDrawable(MimeTypeUtil.getDefaultFolderIcon(context,
-                                                                             viewThemeUtils));
+            thumbnailView.setImageDrawable(MimeTypeUtil.getDefaultFolderIcon(context, viewThemeUtils));
         } else {
             if ((MimeTypeUtil.isImage(file) || MimeTypeUtil.isVideo(file)) && file.getRemoteId() != null) {
                 // Thumbnail in cache?
-                Bitmap thumbnail = ThumbnailsCacheManager.getBitmapFromDiskCache(
-                        ThumbnailsCacheManager.PREFIX_THUMBNAIL + file.getRemoteId()
-                );
-
+                Bitmap thumbnail = FileExtensionsKt.getSmallThumbnail(file);
                 if (thumbnail != null) {
                     if (MimeTypeUtil.isVideo(file)) {
-                        Bitmap withOverlay = ThumbnailsCacheManager.addVideoOverlay(thumbnail, context);
+                        Bitmap withOverlay = VideoOverlayGenerator.addOverlay(thumbnail, context);
                         thumbnailView.setImageBitmap(withOverlay);
                     } else {
                         thumbnailView.setImageBitmap(thumbnail);
                     }
                 } else {
+                    thumbnailView.setImageDrawable(MimeTypeUtil.getFileTypeIcon(file.getMimeType(),
+                                                                                file.getFileName(),
+                                                                                context,
+                                                                                viewThemeUtils));
+
                     // generate new thumbnail
                     if (ThumbnailsCacheManager.cancelPotentialThumbnailWork(file, thumbnailView)) {
                         try {
                             final ThumbnailsCacheManager.ThumbnailGenerationTask task =
-                                    new ThumbnailsCacheManager.ThumbnailGenerationTask(thumbnailView,
-                                                                                       storageManager,
-                                                                                       user,
-                                                                                       asyncTasks);
+                                new ThumbnailsCacheManager.ThumbnailGenerationTask(thumbnailView,
+                                                                                   storageManager,
+                                                                                   user,
+                                                                                   asyncTasks);
 
                             final ThumbnailsCacheManager.AsyncThumbnailDrawable asyncDrawable =
                                     new ThumbnailsCacheManager.AsyncThumbnailDrawable(context.getResources(),
@@ -284,6 +323,18 @@ public class TrashbinListAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
         return files.size() + 1;
     }
 
+    public int getFilesCount() {
+        return files.size();
+    }
+
+    public void notifyItemChanged(@NonNull TrashbinFile file) {
+        notifyItemChanged(getItemPosition(file));
+    }
+
+    public int getItemPosition(@NonNull TrashbinFile file) {
+        return files.indexOf(file);
+    }
+
     public void cancelAllPendingTasks() {
         for (ThumbnailsCacheManager.ThumbnailGenerationTask task : asyncTasks) {
             if (task != null) {
@@ -298,10 +349,54 @@ public class TrashbinListAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
         asyncTasks.clear();
     }
 
+    @SuppressLint("NotifyDataSetChanged")
     public void setSortOrder(FileSortOrder sortOrder) {
         preferences.setSortOrder(FileSortOrder.Type.trashBinView, sortOrder);
         files = sortOrder.sortTrashbinFiles(files);
         notifyDataSetChanged();
+    }
+
+    @SuppressLint("NotifyDataSetChanged")
+    public void setMultiSelect(boolean bool) {
+        isMultiSelect = bool;
+        notifyDataSetChanged();
+    }
+
+    public boolean isMultiSelect() {
+        return isMultiSelect;
+    }
+
+    public boolean isCheckedFile(TrashbinFile file) {
+        return checkedFiles.contains(file);
+    }
+
+    public void addCheckedFile(TrashbinFile file) {
+        checkedFiles.add(file);
+    }
+
+    public void removeCheckedFile(TrashbinFile file) {
+        checkedFiles.remove(file);
+    }
+
+    public void addToCheckedFiles(@Nullable List<TrashbinFile> files) {
+        checkedFiles.addAll(files);
+    }
+
+    public Set<TrashbinFile> getCheckedItems() {
+        return checkedFiles;
+    }
+
+    public void setCheckedItem(@Nullable Set<TrashbinFile> files) {
+        checkedFiles.clear();
+        checkedFiles.addAll(files);
+    }
+
+    public void clearCheckedItems() {
+        checkedFiles.clear();
+    }
+
+    public void addAllFilesToCheckedFiles() {
+        addToCheckedFiles(files);
     }
 
     public class TrashbinFileViewHolder extends RecyclerView.ViewHolder {

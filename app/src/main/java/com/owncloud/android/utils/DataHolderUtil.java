@@ -1,21 +1,9 @@
-/**
- * Nextcloud Android client application
+/*
+ * Nextcloud - Android Client
  *
- * @author Mario Danic
- * Copyright (C) 2017 Mario Danic
- * <p>
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * at your option) any later version.
- * <p>
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- * <p>
- * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2017 Mario Danic <mario@lovelyhq.com>
+ * SPDX-FileCopyrightText: 2017 Nextcloud GmbH
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.utils;
 
@@ -34,7 +22,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  */
 
 public class DataHolderUtil {
-    private Map<String, WeakReference<Object>> data = new HashMap<String, WeakReference<Object>>();
+    private Map<String, WeakReference<Object>> data = new HashMap<>();
 
     private static DataHolderUtil instance;
 
@@ -50,7 +38,7 @@ public class DataHolderUtil {
     }
 
     public void save(String id, Object object) {
-        data.put(id, new WeakReference<Object>(object));
+        data.put(id, new WeakReference<>(object));
     }
 
     public Object retrieve(String id) {

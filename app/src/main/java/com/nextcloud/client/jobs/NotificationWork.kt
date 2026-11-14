@@ -1,26 +1,12 @@
 /*
-* Nextcloud application
-*
-* @author Mario Danic
-* @author Chris Narkiewicz
-* Copyright (C) 2017-2018 Mario Danic <mario@lovelyhq.com>
-* Copyright (C) 2020 Chris Narkiewicz <hello@ezaquarii.com>
-*
-* This program is free software: you can redistribute it and/or modify
-* it under the terms of the GNU General Public License as published by
-* the Free Software Foundation, either version 3 of the License, or
-* at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Nextcloud - Android Client
+ *
+ * SPDX-FileCopyrightText: 2020 Chris Narkiewicz <hello@ezaquarii.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
+ */
 package com.nextcloud.client.jobs
 
+import android.Manifest
 import android.accounts.AuthenticatorException
 import android.accounts.OperationCanceledException
 import android.app.Activity
@@ -29,12 +15,15 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
 import android.media.RingtoneManager
 import android.text.TextUtils
 import android.util.Base64
+import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.net.toUri
 import androidx.work.Worker
 import androidx.work.WorkerParameters
 import com.google.gson.Gson
@@ -44,6 +33,7 @@ import com.nextcloud.client.integrations.deck.DeckApi
 import com.owncloud.android.R
 import com.owncloud.android.datamodel.DecryptedPushMessage
 import com.owncloud.android.lib.common.OwnCloudClient
+import com.owncloud.android.lib.common.OwnCloudClientFactory
 import com.owncloud.android.lib.common.OwnCloudClientManagerFactory
 import com.owncloud.android.lib.common.operations.RemoteOperation
 import com.owncloud.android.lib.common.utils.Log_OC
@@ -51,7 +41,8 @@ import com.owncloud.android.lib.resources.notifications.DeleteNotificationRemote
 import com.owncloud.android.lib.resources.notifications.GetNotificationRemoteOperation
 import com.owncloud.android.lib.resources.notifications.models.Notification
 import com.owncloud.android.ui.activity.FileDisplayActivity
-import com.owncloud.android.ui.activity.NotificationsActivity
+import com.owncloud.android.ui.navigation.NavigatorActivity
+import com.owncloud.android.ui.navigation.NavigatorScreen
 import com.owncloud.android.ui.notifications.NotificationUtils
 import com.owncloud.android.utils.PushUtils
 import com.owncloud.android.utils.theme.ViewThemeUtils
@@ -66,10 +57,10 @@ import java.io.IOException
 import java.security.GeneralSecurityException
 import java.security.PrivateKey
 import java.security.SecureRandom
+import javax.crypto.BadPaddingException
 import javax.crypto.Cipher
 import javax.inject.Inject
 
-@Suppress("LongParameterList")
 class NotificationWork constructor(
     private val context: Context,
     params: WorkerParameters,
@@ -90,7 +81,7 @@ class NotificationWork constructor(
         private const val NUMERIC_NOTIFICATION_ID = "NUMERIC_NOTIFICATION_ID"
     }
 
-    @Suppress("TooGenericExceptionCaught", "NestedBlockDepth", "ComplexMethod", "LongMethod") // legacy code
+    @Suppress("NestedBlockDepth", "CyclomaticComplexMethod", "LongMethod") // legacy code
     override fun doWork(): Result {
         val subject = inputData.getString(KEY_NOTIFICATION_SUBJECT) ?: ""
         val signature = inputData.getString(KEY_NOTIFICATION_SIGNATURE) ?: ""
@@ -107,9 +98,7 @@ class NotificationWork constructor(
                         base64DecodedSubject
                     )
                     if (signatureVerification != null && signatureVerification.signatureValid) {
-                        val cipher = Cipher.getInstance("RSA/None/PKCS1Padding")
-                        cipher.init(Cipher.DECRYPT_MODE, privateKey)
-                        val decryptedSubject = cipher.doFinal(base64DecodedSubject)
+                        val decryptedSubject = decryptSubject(privateKey, base64DecodedSubject)
                         val gson = Gson()
                         val decryptedPushMessage = gson.fromJson(
                             String(decryptedSubject),
@@ -135,6 +124,17 @@ class NotificationWork constructor(
         return Result.success()
     }
 
+    private fun decryptSubject(privateKey: PrivateKey, base64DecodedSubject: ByteArray): ByteArray = try {
+        val cipher = Cipher.getInstance("RSA/ECB/OAEPWithSHA-1AndMGF1Padding")
+        cipher.init(Cipher.DECRYPT_MODE, privateKey)
+        cipher.doFinal(base64DecodedSubject)
+    } catch (e: BadPaddingException) {
+        Log_OC.e(TAG, "OAEP padding failed, trying PKCS1 for compatibility", e)
+        val cipher = Cipher.getInstance("RSA/None/PKCS1Padding")
+        cipher.init(Cipher.DECRYPT_MODE, privateKey)
+        cipher.doFinal(base64DecodedSubject)
+    }
+
     @Suppress("LongMethod") // legacy code
     private fun sendNotification(notification: Notification, user: User) {
         val randomId = SecureRandom()
@@ -142,13 +142,13 @@ class NotificationWork constructor(
 
         val deckActionOverrideIntent = deckApi.createForwardToDeckActionIntent(notification, user)
 
-        val pendingIntent: PendingIntent
+        val pendingIntent: PendingIntent?
         if (deckActionOverrideIntent.isPresent) {
             pendingIntent = deckActionOverrideIntent.get()
         } else {
             val intent: Intent
             if (file == null) {
-                intent = Intent(context, NotificationsActivity::class.java)
+                intent = NavigatorActivity.intent(context, NavigatorScreen.Notifications)
             } else {
                 intent = Intent(context, FileDisplayActivity::class.java)
                 intent.action = Intent.ACTION_VIEW
@@ -238,11 +238,19 @@ class NotificationWork constructor(
                 }
                 .build()
         )
-        val notificationManager = NotificationManagerCompat.from(context)
-        notificationManager.notify(notification.getNotificationId(), notificationBuilder.build())
+
+        if (ActivityCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            Log_OC.w(this, "Missing permission to post notifications")
+        } else {
+            val notificationManager = NotificationManagerCompat.from(context)
+            notificationManager.notify(notification.getNotificationId(), notificationBuilder.build())
+        }
     }
 
-    @Suppress("TooGenericExceptionCaught") // legacy code
     private fun fetchCompleteNotification(account: User, decryptedPushMessage: DecryptedPushMessage) {
         val optionalUser = accountManager.getUser(account.accountName)
         if (!optionalUser.isPresent) {
@@ -251,8 +259,7 @@ class NotificationWork constructor(
         }
         val user = optionalUser.get()
         try {
-            val client = OwnCloudClientManagerFactory.getDefaultSingleton()
-                .getClientFor(user.toOwnCloudAccount(), context)
+            val client = OwnCloudClientFactory.createNextcloudClient(user, context)
             val result = GetNotificationRemoteOperation(decryptedPushMessage.nid)
                 .execute(client)
             if (result.isSuccess) {
@@ -277,7 +284,7 @@ class NotificationWork constructor(
             this.accountManager = accountManager
         }
 
-        @Suppress("ComplexMethod") // legacy code
+        @Suppress("CyclomaticComplexMethod") // legacy code
         override fun onReceive(context: Context, intent: Intent) {
             AndroidInjection.inject(this, context)
             val numericNotificationId = intent.getIntExtra(NUMERIC_NOTIFICATION_ID, 0)
@@ -302,14 +309,15 @@ class NotificationWork constructor(
                                 val user = optionalUser.get()
                                 val client = OwnCloudClientManagerFactory.getDefaultSingleton()
                                     .getClientFor(user.toOwnCloudAccount(), context)
+                                val nextcloudClient = OwnCloudClientFactory.createNextcloudClient(user, context)
                                 val actionType = intent.getStringExtra(KEY_NOTIFICATION_ACTION_TYPE)
                                 val actionLink = intent.getStringExtra(KEY_NOTIFICATION_ACTION_LINK)
                                 val success: Boolean = if (!actionType.isNullOrEmpty() && !actionLink.isNullOrEmpty()) {
-                                    val resultCode = executeAction(actionType, actionLink, client)
+                                    val resultCode = executeAction(actionType, actionLink, client, context)
                                     resultCode == HttpStatus.SC_OK || resultCode == HttpStatus.SC_ACCEPTED
                                 } else {
                                     DeleteNotificationRemoteOperation(numericNotificationId)
-                                        .execute(client).isSuccess
+                                        .execute(nextcloudClient).isSuccess
                                 }
                                 if (success) {
                                     if (oldNotification == null) {
@@ -331,10 +339,21 @@ class NotificationWork constructor(
             }
         }
 
-        @Suppress("ReturnCount") // legacy code
-        private fun executeAction(actionType: String, actionLink: String, client: OwnCloudClient): Int {
-            val method: HttpMethod
-            method = when (actionType) {
+        private fun executeAction(
+            actionType: String,
+            actionLink: String,
+            client: OwnCloudClient,
+            context: Context
+        ): Int {
+            if (actionType == "WEB") {
+                val browserIntent = Intent(Intent.ACTION_VIEW, actionLink.toUri()).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(browserIntent)
+                return HttpStatus.SC_OK
+            }
+
+            val method: HttpMethod = when (actionType) {
                 "GET" -> GetMethod(actionLink)
                 "POST" -> Utf8PostMethod(actionLink)
                 "DELETE" -> DeleteMethod(actionLink)

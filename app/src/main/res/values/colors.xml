@@ -1,36 +1,31 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-  Nextcloud Android client application
-
-  Copyright (C) 2012 Bartek Przybylski
-  Copyright (C) 2015 ownCloud Inc.
-
-  This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License version 2,
-  as published by the Free Software Foundation.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program. If not, see <http://www.gnu.org/licenses/>.
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ~ Nextcloud - Android Client
+  ~
+  ~ SPDX-FileCopyrightText: 2022 Álvaro Brey  <alvaro@alvarobrey.com>
+  ~ SPDX-FileCopyrightText: 2016-2020 Andy Scherzinger <info@andy-scherzinger.de>
+  ~ SPDX-FileCopyrightText: 2020 Joris Bodin <joris.bodin@infomaniak.com>
+  ~ SPDX-FileCopyrightText: 2018 Tobias Kaminsky <tobias@kaminsky.me>
+  ~ SPDX-FileCopyrightText: 2012 Bartosz Przybylski
+  ~ SPDX-License-Identifier: GPL-2.0-only AND (AGPL-3.0-or-later OR GPL-2.0-only)
 -->
 <resources>
-
     <color name="list_item_lastmod_and_filesize_text">@color/secondary_text_color</color>
     <color name="black">#000000</color>
     <color name="white">#ffffff</color>
     <color name="white_helper_text">#B3FFFFFF</color>
     <color name="text_color">#333333</color>
+    <color name="grid_file_features_icon_color">#303034</color>
+    <color name="grid_file_features_background_color">#E9E8EB</color>
     <color name="drawer_text_color">@color/secondary_text_color</color>
     <color name="text_color_inverse">#ffffff</color>
     <color name="disabled_text">#ff888888</color>
-    <color name="list_divider_background">#eeeeee</color>
+    <color name="list_divider_background">#CAC4D0</color>
+    <color name="list_expand_icon_color">@color/list_divider_background</color>
     <color name="fg_inverse">#FFFFFF</color>
     <color name="filelist_icon_background">#DDDDDD</color>
-    <color name="dark_background_text_color">#EEEEEE</color>
     <color name="transparent">#00000000</color>
+    <color name="gallery_selection_scrim">#33000000</color>
     <color name="secondary_text_color">#666666</color>
     <color name="highlight_textColor_Warning">#e53935</color>
 
@@ -45,22 +40,35 @@
     <!-- level colors for info notifications/visualisations -->
     <color name="infolevel_warning">#e9322d</color>
 
+    <!-- Log Colors -->
+    <color name="log_level_verbose">#9E9E9E</color>
+    <color name="log_level_debug">#2196F3</color>
+    <color name="log_level_info">#4CAF50</color>
+    <color name="log_level_warning">#FFA000</color>
+    <color name="log_level_error">#F44336</color>
+    <color name="log_level_assert">#D50000</color>
+    <color name="log_level_unknown">#757575</color>
+
     <!-- Colors -->
     <color name="dark">#000000</color>
     <color name="login_btn_tint">#ffffff</color>
     <color name="login_btn_stroke">#ffffff</color>
     <color name="bg_default">#FFFFFF</color>
+    <color name="media_placeholder_background">#EEEEEE</color>
     <color name="background_color_inverse">#000000</color>
     <color name="primary_button_background_color">@color/color_accent</color>
     <color name="primary_button_text_color">#ffffff</color>
     <color name="secondary_button_background_color">#D6D7D7</color>
     <color name="secondary_button_text_color">#000000</color>
     <color name="nc_grey">#ededed</color>
+    <color name="task_container">#F4F4F4</color>
     <color name="icon_on_nc_grey">#000000</color>
-
-    <color name="process_dialog_background">#ffffff</color>
+    <color name="foreground_highlight">#1D1B1E</color>
     <color name="indicator_dot_selected">#ffffff</color>
     <color name="drawer_shadow">#000000</color>
+    <color name="online">#2D7B41</color>
+    <color name="busy">#DB0606</color>
+    <color name="offline">@color/high_emphasis_text</color>
 
     <color name="background_color_png">#FFFFFF</color>
 
@@ -80,4 +88,15 @@
     <color name="appbar">@android:color/white</color>
     <color name="fontAppbar">#666666</color>
     <color name="fontSecondaryAppbar">#A5A5A5</color>
+
+    <color name="bg_message_bubble">#EFEFEF</color>
+
+    <!-- Player -->
+    <color name="player_background_color">#111111</color>
+    <color name="player_default_text_color">@color/white</color>
+    <color name="player_toolbar_text_color">@color/white</color>
+    <color name="player_default_icon_color">@color/white</color>
+    <color name="player_toolbar_icon_color">@color/white</color>
+    <color name="player_video_scrim_color">#B3000000</color>
+    <color name="player_progressbar_background_color">#979797</color>
 </resources>

@@ -1,3 +1,9 @@
+/*
+ * Nextcloud - Android Client
+ *
+ * SPDX-FileCopyrightText: 2020-2021 Chris Narkiewicz <hello@ezaquarii.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
+ */
 package com.nextcloud.client.notifications
 
 import android.app.Notification
@@ -7,37 +13,31 @@ import android.content.Context
 import android.content.Intent
 import android.content.res.Resources
 import android.graphics.BitmapFactory
-import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.nextcloud.client.account.User
 import com.owncloud.android.R
 import com.owncloud.android.datamodel.OCFile
 import com.owncloud.android.ui.activity.FileDisplayActivity
 import com.owncloud.android.ui.notifications.NotificationUtils
-import com.owncloud.android.ui.preview.PreviewImageActivity
-import com.owncloud.android.ui.preview.PreviewImageFragment
+import com.owncloud.android.ui.preview.media.PreviewMediaActivity
+import com.owncloud.android.ui.preview.media.PreviewMediaFragment
 import com.owncloud.android.utils.theme.ViewThemeUtils
 import javax.inject.Inject
+import javax.inject.Provider
+import com.nextcloud.utils.AppConstants.PROGRESS_PERCENTAGE_MAX
+import com.nextcloud.utils.AppConstants.PROGRESS_PERCENTAGE_MIN
 
 class AppNotificationManagerImpl @Inject constructor(
     private val context: Context,
     private val resources: Resources,
     private val platformNotificationsManager: NotificationManager,
-    private val viewThemeUtils: ViewThemeUtils
+    private val viewThemeUtils: Provider<ViewThemeUtils>
 ) : AppNotificationManager {
 
-    companion object {
-        const val PROGRESS_PERCENTAGE_MAX = 100
-        const val PROGRESS_PERCENTAGE_MIN = 0
-    }
-
     private fun builder(channelId: String): NotificationCompat.Builder {
-        val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        val builder =
             NotificationCompat.Builder(context, channelId)
-        } else {
-            NotificationCompat.Builder(context)
-        }
-        viewThemeUtils.androidx.themeNotificationCompatBuilder(context, builder)
+        viewThemeUtils.get().androidx.themeNotificationCompatBuilder(context, builder)
         return builder
     }
 
@@ -45,7 +45,7 @@ class AppNotificationManagerImpl @Inject constructor(
         val icon = BitmapFactory.decodeResource(resources, R.drawable.notification_icon)
         return builder(NotificationUtils.NOTIFICATION_CHANNEL_DOWNLOAD)
             .setContentTitle(resources.getString(R.string.app_name))
-            .setContentText(resources.getString(R.string.foreground_service_download))
+            .setContentText(resources.getString(R.string.worker_download))
             .setSmallIcon(R.drawable.notification_icon)
             .setLargeIcon(icon)
             .build()
@@ -67,8 +67,8 @@ class AppNotificationManagerImpl @Inject constructor(
             .setContentText(content)
 
         if (allowPreview) {
-            val openFileIntent = if (PreviewImageFragment.canBePreviewed(file)) {
-                PreviewImageActivity.previewFileIntent(context, fileOwner, file)
+            val openFileIntent = if (PreviewMediaFragment.canBePreviewed(file)) {
+                PreviewMediaActivity.previewFileIntent(context, fileOwner, file)
             } else {
                 FileDisplayActivity.openFileIntent(context, fileOwner, file)
             }

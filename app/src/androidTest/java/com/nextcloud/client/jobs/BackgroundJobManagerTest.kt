@@ -1,24 +1,12 @@
 /*
- * Nextcloud Android client application
+ * Nextcloud - Android Client
  *
- * @author Chris Narkiewicz
- * Copyright (C) 2020 Chris Narkiewicz <hello@ezaquarii.com>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2020 Chris Narkiewicz <hello@ezaquarii.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.jobs
 
+import android.content.Context
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.Observer
@@ -32,13 +20,19 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.nextcloud.client.account.User
 import com.nextcloud.client.core.Clock
+import com.nextcloud.utils.extensions.toByteArray
+import com.owncloud.android.lib.common.utils.Log_OC
+import org.apache.commons.io.FileUtils
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.junit.runners.Suite
 import org.mockito.ArgumentMatcher
@@ -50,6 +44,8 @@ import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import java.io.File
+import java.io.IOException
 import java.util.Date
 import java.util.UUID
 import java.util.concurrent.CountDownLatch
@@ -95,16 +91,18 @@ class BackgroundJobManagerTest {
         internal lateinit var workManager: WorkManager
         internal lateinit var clock: Clock
         internal lateinit var backgroundJobManager: BackgroundJobManagerImpl
+        internal lateinit var context: Context
 
         @Before
         fun setUpFixture() {
+            context = mock()
             user = mock()
             whenever(user.accountName).thenReturn(USER_ACCOUNT_NAME)
             workManager = mock()
             clock = mock()
             whenever(clock.currentTime).thenReturn(TIMESTAMP)
             whenever(clock.currentDate).thenReturn(Date(TIMESTAMP))
-            backgroundJobManager = BackgroundJobManagerImpl(workManager, clock)
+            backgroundJobManager = BackgroundJobManagerImpl(workManager, clock, mock())
         }
 
         fun assertHasRequiredTags(tags: Set<String>, jobName: String, user: User? = null) {
@@ -117,13 +115,13 @@ class BackgroundJobManagerTest {
         }
 
         fun buildWorkInfo(index: Long): WorkInfo = WorkInfo(
-            UUID.randomUUID(),
-            WorkInfo.State.RUNNING,
-            Data.Builder().build(),
-            listOf(BackgroundJobManagerImpl.formatTimeTag(1581820284000)),
-            Data.Builder().build(),
-            1,
-            0
+            id = UUID.randomUUID(),
+            state = WorkInfo.State.RUNNING,
+            outputData = Data.Builder().build(),
+            tags = setOf(BackgroundJobManagerImpl.formatTimeTag(1581820284000)),
+            progress = Data.Builder().build(),
+            runAttemptCount = 1,
+            generation = 0
         )
     }
 
@@ -315,16 +313,36 @@ class BackgroundJobManagerTest {
         private lateinit var jobInfo: LiveData<JobInfo?>
         private lateinit var request: OneTimeWorkRequest
 
+        @get:Rule
+        var folder: TemporaryFolder = TemporaryFolder()
+
         @Before
         fun setUp() {
+            var selectedContactsFile: File? = null
+            try {
+                selectedContactsFile = folder.newFile("hashset_cache.txt")
+            } catch (_: IOException) {
+                Log_OC.e("ImmediateContactsImport", "error creating temporary test file in ")
+                fail("hashset_cache cannot be found")
+            }
+
+            if (selectedContactsFile == null) {
+                fail("hashset_cache cannot be found")
+            }
+
             val requestCaptor: KArgumentCaptor<OneTimeWorkRequest> = argumentCaptor()
             workInfo = MutableLiveData()
             whenever(workManager.getWorkInfoByIdLiveData(any())).thenReturn(workInfo)
+
+            val selectedContacts = intArrayOf(1, 2, 3)
+            val contractsAsByteArray = selectedContacts.toByteArray()
+            FileUtils.writeByteArrayToFile(selectedContactsFile, contractsAsByteArray)
+
             jobInfo = backgroundJobManager.startImmediateContactsImport(
                 contactsAccountName = "name",
                 contactsAccountType = "type",
                 vCardFilePath = "/path/to/vcard/file",
-                selectedContacts = intArrayOf(1, 2, 3)
+                selectedContactsFilePath = selectedContactsFile!!.absolutePath
             )
             verify(workManager).enqueueUniqueWork(
                 any(),

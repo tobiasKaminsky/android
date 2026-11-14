@@ -1,95 +1,129 @@
 /*
- * Nextcloud Android client application
+ * Nextcloud - Android Client
  *
- * @author Tobias Kaminsky
- * Copyright (C) 2020 Tobias Kaminsky
- * Copyright (C) 2020 Nextcloud GmbH
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2024 Alper Ozturk <alper.ozturk@nextcloud.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
-
 package com.nextcloud.client.jobs
 
 import android.Manifest
 import androidx.test.rule.GrantPermissionRule
 import androidx.work.WorkManager
 import com.nextcloud.client.core.ClockImpl
+import com.nextcloud.client.preferences.AppPreferences
+import com.nextcloud.client.preferences.AppPreferencesImpl
 import com.nextcloud.test.RetryTestRule
-import com.owncloud.android.AbstractIT
+import com.nextcloud.utils.extensions.toByteArray
 import com.owncloud.android.AbstractOnServerIT
 import com.owncloud.android.R
 import com.owncloud.android.datamodel.OCFile
+import com.owncloud.android.lib.common.utils.Log_OC
 import com.owncloud.android.operations.DownloadFileOperation
 import ezvcard.Ezvcard
 import ezvcard.VCard
-import junit.framework.Assert.assertEquals
-import junit.framework.Assert.assertTrue
+import org.apache.commons.io.FileUtils
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
 import java.io.BufferedInputStream
 import java.io.File
 import java.io.FileInputStream
+import java.io.IOException
 
 class ContactsBackupIT : AbstractOnServerIT() {
-    val workmanager = WorkManager.getInstance(targetContext)
-    private val backgroundJobManager = BackgroundJobManagerImpl(workmanager, ClockImpl())
+    private val workManager = WorkManager.getInstance(targetContext)
+    private val preferences: AppPreferences = AppPreferencesImpl.fromContext(targetContext)
+    private val backgroundJobManager = BackgroundJobManagerImpl(workManager, ClockImpl(), preferences)
 
     @get:Rule
-    val writeContactsRule = GrantPermissionRule.grant(Manifest.permission.WRITE_CONTACTS)
+    val writeContactsRule: GrantPermissionRule = GrantPermissionRule.grant(Manifest.permission.WRITE_CONTACTS)
 
     @get:Rule
-    val readContactsRule = GrantPermissionRule.grant(Manifest.permission.READ_CONTACTS)
+    val readContactsRule: GrantPermissionRule = GrantPermissionRule.grant(Manifest.permission.READ_CONTACTS)
 
     @get:Rule
     val retryTestRule = RetryTestRule() // flaky test
 
+    @get:Rule
+    var folder: TemporaryFolder = TemporaryFolder()
+
     private val vcard: String = "vcard.vcf"
+    private var selectedContactsFile: File? = null
+
+    @Before
+    fun setup() {
+        try {
+            selectedContactsFile = folder.newFile("hashset_cache.txt")
+        } catch (_: IOException) {
+            Log_OC.e("ContactsBackupIT", "error creating temporary test file in ")
+        }
+    }
 
     @Test
     fun importExport() {
-        val intArray = IntArray(1)
-        intArray[0] = 0
+        val intArray = intArrayOf(0)
+        if (selectedContactsFile == null) {
+            fail("hashset_cache cannot be found")
+        }
+
+        val contractsAsByteArray = intArray.toByteArray()
+        FileUtils.writeByteArrayToFile(selectedContactsFile, contractsAsByteArray)
 
         // import file to local contacts
-        backgroundJobManager.startImmediateContactsImport(null, null, getFile(vcard).absolutePath, intArray)
-
-        shortSleep()
+        backgroundJobManager.startImmediateContactsImport(
+            null,
+            null,
+            getFile(vcard).absolutePath,
+            selectedContactsFile!!.absolutePath
+        )
+        longSleep()
 
         // export contact
         backgroundJobManager.startImmediateContactsBackup(user)
-
         longSleep()
 
-        val backupFolder: String = targetContext.resources.getString(R.string.contacts_backup_folder) +
+        val folderPath: String = targetContext.resources.getString(R.string.contacts_backup_folder) +
             OCFile.PATH_SEPARATOR
 
         refreshFolder("/")
         longSleep()
-
-        refreshFolder(backupFolder)
         longSleep()
 
-        val backupOCFile = storageManager.getFolderContent(
-            storageManager.getFileByDecryptedRemotePath(backupFolder),
-            false
-        )[0]
+        refreshFolder(folderPath)
+        longSleep()
+        longSleep()
 
-        assertTrue(DownloadFileOperation(user, backupOCFile, AbstractIT.targetContext).execute(client).isSuccess)
+        if (folderPath.isEmpty()) {
+            fail("folderPath cannot be empty")
+        }
 
-        val backupFile = File(backupOCFile.storagePath)
+        val folder = storageManager.getFileByDecryptedRemotePath(folderPath)
+        if (folder == null) {
+            fail("folder cannot be null")
+        }
+
+        val ocFile = storageManager.getFolderContent(folder, false).firstOrNull()
+        if (ocFile == null) {
+            fail("ocFile cannot be null")
+        }
+
+        if (ocFile?.storagePath == null) {
+            fail("ocFile.storagePath cannot be null")
+        }
+
+        assertTrue(DownloadFileOperation(user, ocFile!!, targetContext).execute(client).isSuccess)
+
+        val file = ocFile.storagePath?.let { File(it) }
+        if (file == null) {
+            fail("file cannot be null")
+        }
+
         val vcardInputStream = BufferedInputStream(FileInputStream(getFile(vcard)))
-        val backupFileInputStream = BufferedInputStream(FileInputStream(backupFile))
+        val backupFileInputStream = BufferedInputStream(FileInputStream(file))
 
         // verify same
         val originalCards: ArrayList<VCard> = ArrayList()
@@ -99,6 +133,17 @@ class ContactsBackupIT : AbstractOnServerIT() {
         backupCards.addAll(Ezvcard.parse(backupFileInputStream).all())
 
         assertEquals(originalCards.size, backupCards.size)
-        assertEquals(originalCards[0].formattedName.toString(), backupCards[0].formattedName.toString())
+
+        val originalCardFormattedName = originalCards.firstOrNull()?.formattedName
+        if (originalCardFormattedName == null) {
+            fail("originalCardFormattedName cannot be null")
+        }
+
+        val backupCardFormattedName = backupCards.firstOrNull()?.formattedName
+        if (backupCardFormattedName == null) {
+            fail("backupCardFormattedName cannot be null")
+        }
+
+        assertEquals(originalCardFormattedName.toString(), backupCardFormattedName.toString())
     }
 }

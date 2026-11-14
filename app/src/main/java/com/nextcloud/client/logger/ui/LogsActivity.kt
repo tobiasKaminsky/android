@@ -1,57 +1,37 @@
 /*
- * Nextcloud Android client application
+ * Nextcloud - Android Client
  *
- * @author Chris Narkiewicz
- * Copyright (C) 2019 Chris Narkiewicz <hello@ezaquarii.com>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2019 Chris Narkiewicz <hello@ezaquarii.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.logger.ui
 
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
-import android.widget.ProgressBar
 import androidx.appcompat.widget.SearchView
-import androidx.databinding.DataBindingUtil
-import androidx.lifecycle.Observer
+import androidx.core.view.isInvisible
+import androidx.core.view.isVisible
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 import com.nextcloud.client.di.ViewModelFactory
 import com.owncloud.android.R
 import com.owncloud.android.databinding.LogsActivityBinding
 import com.owncloud.android.ui.activity.ToolbarActivity
-import com.owncloud.android.utils.theme.ViewThemeUtils
+import com.owncloud.android.ui.navigation.model.ActionBarStyle
 import javax.inject.Inject
 
 class LogsActivity : ToolbarActivity() {
 
     @Inject
-    protected lateinit var viewModelFactory: ViewModelFactory
-
-    @Inject
-    lateinit var viewThemeUtils: ViewThemeUtils
+    lateinit var viewModelFactory: ViewModelFactory
 
     private lateinit var vm: LogsViewModel
     private lateinit var binding: LogsActivityBinding
     private lateinit var logsAdapter: LogsAdapter
 
     private val searchBoxListener = object : SearchView.OnQueryTextListener {
-        override fun onQueryTextSubmit(query: String): Boolean {
-            return false
-        }
+        override fun onQueryTextSubmit(query: String): Boolean = false
 
         override fun onQueryTextChange(newText: String): Boolean {
             vm.filter(newText)
@@ -62,25 +42,26 @@ class LogsActivity : ToolbarActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         vm = ViewModelProvider(this, viewModelFactory).get(LogsViewModel::class.java)
-        binding = DataBindingUtil.setContentView<LogsActivityBinding>(this, R.layout.logs_activity).apply {
-            lifecycleOwner = this@LogsActivity
-            vm = this@LogsActivity.vm
-        }
+        binding = LogsActivityBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
-        findViewById<ProgressBar>(R.id.logs_loading_progress).apply {
-            viewThemeUtils.platform.themeHorizontalProgressBar(this)
-        }
+        viewThemeUtils.platform.themeHorizontalProgressBar(binding.logsLoadingProgress)
 
         logsAdapter = LogsAdapter(this)
-        findViewById<RecyclerView>(R.id.logsList).apply {
+        binding.logsList.apply {
             layoutManager = LinearLayoutManager(this@LogsActivity)
             adapter = logsAdapter
         }
 
-        vm.entries.observe(this, Observer { logsAdapter.entries = it })
+        vm.entries.observe(this) { logsAdapter.entries = it }
+        vm.isLoading.observe(this) { isLoading ->
+            binding.logsLoadingProgress.isVisible = isLoading == true
+            binding.logsContent.isInvisible = isLoading == true
+        }
+        vm.status.observe(this) { binding.logsStatus.text = it }
         vm.load()
 
-        setupToolbar()
+        showActionBar(ActionBarStyle.Plain)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
         supportActionBar?.let {
@@ -104,6 +85,7 @@ class LogsActivity : ToolbarActivity() {
             android.R.id.home -> finish()
             R.id.action_delete_logs -> vm.deleteAll()
             R.id.action_send_logs -> vm.send()
+            R.id.action_export_logs -> vm.export()
             R.id.action_refresh_logs -> vm.load()
             else -> retval = super.onOptionsItemSelected(item)
         }

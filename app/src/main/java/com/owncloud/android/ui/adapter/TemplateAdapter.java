@@ -1,46 +1,34 @@
 /*
- * Nextcloud Android client application
+ * Nextcloud - Android Client
  *
- * @author Tobias Kaminsky
- * @author Chris Narkiewicz
- *
- * Copyright (C) 2018 Tobias Kaminsky
- * Copyright (C) 2018 Nextcloud GmbH.
- * Copyright (C) 2019 Chris Narkiewicz <hello@ezaquarii.com>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2024 Alper Ozturk <alper.ozturk@nextcloud.com>
+ * SPDX-FileCopyrightText: 2019 Chris Narkiewicz <hello@ezaquarii.com>
+ * SPDX-FileCopyrightText: 2018 Tobias Kaminsky <tobias@kaminsky.me>
+ * SPDX-FileCopyrightText: 2018 Nextcloud GmbH
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
-
 package com.owncloud.android.ui.adapter;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.drawable.Drawable;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
-import com.bumptech.glide.Glide;
 import com.nextcloud.client.account.CurrentAccountProvider;
 import com.nextcloud.client.network.ClientFactory;
+import com.nextcloud.utils.GlideHelper;
 import com.owncloud.android.databinding.TemplateButtonBinding;
+import com.owncloud.android.lib.common.OwnCloudClientManagerFactory;
 import com.owncloud.android.lib.common.Template;
 import com.owncloud.android.lib.common.TemplateList;
+import com.owncloud.android.lib.common.utils.Log_OC;
 import com.owncloud.android.utils.MimeTypeUtil;
-import com.owncloud.android.utils.glide.CustomGlideStreamLoader;
 import com.owncloud.android.utils.theme.ViewThemeUtils;
 
 import java.util.ArrayList;
+import java.util.Optional;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
@@ -51,11 +39,11 @@ import androidx.recyclerview.widget.RecyclerView;
 public class TemplateAdapter extends RecyclerView.Adapter<TemplateAdapter.ViewHolder> {
 
     private TemplateList templateList = new TemplateList();
-    private ClickListener clickListener;
-    private Context context;
-    private CurrentAccountProvider currentAccountProvider;
-    private ClientFactory clientFactory;
-    private String mimetype;
+    private final ClickListener clickListener;
+    private final Context context;
+    private final CurrentAccountProvider currentAccountProvider;
+    private final ClientFactory clientFactory;
+    private final String mimetype;
     private Template selectedTemplate;
     private final ViewThemeUtils viewThemeUtils;
 
@@ -94,6 +82,7 @@ public class TemplateAdapter extends RecyclerView.Adapter<TemplateAdapter.ViewHo
         this.templateList = templateList;
     }
 
+    @SuppressLint("NotifyDataSetChanged")
     public void setTemplateAsActive(Template template) {
         selectedTemplate = template;
         notifyDataSetChanged();
@@ -117,7 +106,8 @@ public class TemplateAdapter extends RecyclerView.Adapter<TemplateAdapter.ViewHo
             super(binding.getRoot());
             this.binding = binding;
             viewThemeUtils.files.themeTemplateCardView(this.binding.templateContainer);
-            itemView.setOnClickListener(this);
+            binding.templateLayout.setOnClickListener(this);
+            binding.templateContainer.setOnClickListener(this);
         }
 
         @Override
@@ -130,16 +120,15 @@ public class TemplateAdapter extends RecyclerView.Adapter<TemplateAdapter.ViewHo
         public void setData(Template template) {
             this.template = template;
 
-            Drawable placeholder = MimeTypeUtil.getFileTypeIcon(mimetype,
-                                                                template.getTitle(),
-                                                                context,
-                                                                viewThemeUtils);
-
-            Glide.with(context).using(new CustomGlideStreamLoader(currentAccountProvider.getUser(), clientFactory))
-                .load(template.getPreview())
-                .placeholder(placeholder)
-                .error(placeholder)
-                .into(binding.template);
+            int placeholder = MimeTypeUtil.getFileTypeIconId(mimetype, template.getTitle());
+            new Thread(() -> {{
+                try {
+                    final var client = OwnCloudClientManagerFactory.getDefaultSingleton().getNextcloudClientFor(Optional.of(currentAccountProvider.getUser().toOwnCloudAccount()).get(), context);
+                    binding.template.post(() -> GlideHelper.INSTANCE.loadIntoImageView(context, client, template.getPreview(), binding.template, placeholder, false));
+                } catch (Exception e) {
+                    Log_OC.e("TemplateAdapter", "Exception setData: " + e);
+                }
+            }}).start();
 
             binding.templateName.setText(template.getTitle());
             binding.templateContainer.setChecked(template == selectedTemplate);

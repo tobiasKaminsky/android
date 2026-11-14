@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ~ Nextcloud - Android Client
+  ~
+  ~ SPDX-FileCopyrightText: 2025 Alper Ozturk <alper.ozturk@nextcloud.com>
+  ~ SPDX-License-Identifier: AGPL-3.0-or-later
+  -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/unified_search_current_dir_item_layout"
+    android:layout_width="match_parent"
+    android:layout_height="@dimen/standard_list_item_size"
+    android:baselineAligned="false"
+    android:gravity="center_vertical"
+    android:orientation="horizontal">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="@dimen/standard_list_item_size"
+        android:layout_height="@dimen/standard_list_item_size">
+
+        <FrameLayout
+            android:id="@+id/thumbnail_layout"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <ImageView
+                android:id="@+id/thumbnail"
+                android:layout_width="@dimen/file_icon_size"
+                android:layout_height="@dimen/file_icon_size"
+                android:contentDescription="@null"
+                android:src="@drawable/folder" />
+
+            <com.elyeproj.loaderviewlibrary.LoaderImageView
+                android:id="@+id/thumbnail_shimmer"
+                android:layout_width="@dimen/file_icon_size"
+                android:layout_height="@dimen/file_icon_size"
+                android:visibility="gone"
+                app:corners="8" />
+
+        </FrameLayout>
+
+        <ImageView
+            android:id="@+id/favorite_action"
+            android:layout_width="@dimen/list_item_favorite_action_layout_width"
+            android:layout_height="@dimen/list_item_favorite_action_layout_height"
+            android:contentDescription="@string/favorite"
+            android:scaleType="fitCenter"
+            android:src="@drawable/favorite"
+            android:visibility="gone"
+            app:layout_constraintBottom_toTopOf="@+id/thumbnail_layout"
+            app:layout_constraintEnd_toEndOf="@+id/thumbnail_layout"
+            app:layout_constraintStart_toEndOf="@+id/thumbnail_layout"
+            app:layout_constraintTop_toTopOf="@+id/thumbnail_layout"
+            tools:visibility="visible" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <LinearLayout
+        android:id="@+id/titleContainer"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <com.google.android.material.textview.MaterialTextView
+            android:id="@+id/filename"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:ellipsize="middle"
+            android:singleLine="true"
+            android:textColor="@color/text_color"
+            android:textSize="@dimen/two_line_primary_text_size"
+            tools:text="@string/placeholder_filename" />
+
+        <com.google.android.material.textview.MaterialTextView
+            android:id="@+id/extension"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:ellipsize="middle"
+            android:singleLine="true"
+            android:textColor="@color/text_color"
+            android:textSize="@dimen/two_line_primary_text_size"
+            tools:text="@string/placeholder_extension" />
+
+    </LinearLayout>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/more"
+        style="?attr/materialIconButtonStyle"
+        android:layout_width="@dimen/minimum_size_for_touchable_area"
+        android:layout_height="match_parent"
+        android:layout_gravity="center"
+        android:contentDescription="@string/overflow_menu"
+        app:icon="@drawable/ic_dots_vertical"
+        app:iconGravity="textStart"
+        app:iconTint="@color/secondary_text_color" />
+
+</LinearLayout>

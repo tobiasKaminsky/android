@@ -1,32 +1,23 @@
 /*
- * Nextcloud Android client application
+ * Nextcloud - Android Client
  *
- *  @author Álvaro Brey
- *  Copyright (C) 2022 Álvaro Brey
- *  Copyright (C) 2022 Nextcloud GmbH
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE
- * License as published by the Free Software Foundation; either
- * version 3 of the License, or any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU AFFERO GENERAL PUBLIC LICENSE for more details.
- *
- * You should have received a copy of the GNU Affero General Public
- * License along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * SPDX-FileCopyrightText: 2026 Alper Ozturk <alper.ozturk@nextcloud.com>
+ * SPDX-FileCopyrightText: 2022 Álvaro Brey <alvaro@alvarobrey.com>
+ * SPDX-FileCopyrightText: 2022 Nextcloud GmbH
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
-
 package com.nextcloud.client.di
 
+import com.owncloud.android.lib.common.utils.Log_OC
 import dagger.Module
 import dagger.Provides
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import javax.inject.Qualifier
+import javax.inject.Singleton
 
 @Retention(AnnotationRetention.BINARY)
 @Qualifier
@@ -40,8 +31,15 @@ annotation class IoDispatcher
 @Qualifier
 annotation class MainDispatcher
 
+@Retention(AnnotationRetention.BINARY)
+@Qualifier
+annotation class ApplicationScope
+
 @Module
 object DispatcherModule {
+
+    private const val APPLICATION_SCOPE_TAG = "ApplicationScope"
+
     @DefaultDispatcher
     @Provides
     fun provideDefaultDispatcher(): CoroutineDispatcher = Dispatchers.Default
@@ -53,4 +51,18 @@ object DispatcherModule {
     @MainDispatcher
     @Provides
     fun provideMainDispatcher(): CoroutineDispatcher = Dispatchers.Main
+
+    /**
+     * A process-lifetime [CoroutineScope] for singletons that outlive any single Android component.
+     */
+    @ApplicationScope
+    @Provides
+    @Singleton
+    fun provideApplicationScope(@IoDispatcher dispatcher: CoroutineDispatcher): CoroutineScope = CoroutineScope(
+        SupervisorJob() +
+            dispatcher +
+            CoroutineExceptionHandler { _, throwable ->
+                Log_OC.e(APPLICATION_SCOPE_TAG, "Uncaught exception in application coroutine scope", throwable)
+            }
+    )
 }

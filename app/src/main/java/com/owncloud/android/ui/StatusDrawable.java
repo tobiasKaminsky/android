@@ -1,24 +1,10 @@
 /*
- * Nextcloud Android client application
+ * Nextcloud - Android Client
  *
- * @author Tobias Kaminsky
- * Copyright (C) 2020 Tobias Kaminsky
- * Copyright (C) 2020 Nextcloud GmbH
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2020 Tobias Kaminsky <tobias@kaminsky.me>
+ * SPDX-FileCopyrightText: 2020 Nextcloud GmbH
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
-
 package com.owncloud.android.ui;
 
 import android.content.Context;
@@ -49,8 +35,6 @@ public class StatusDrawable extends Drawable {
     private Paint backgroundPaint;
     private final float radius;
     private Context context;
-    private final static int whiteBackground = Color.argb(200, 255, 255, 255);
-    private final static int onlineStatus = Color.argb(255, 73, 179, 130);
 
     public StatusDrawable(Status status, float statusSize, Context context) {
         backgroundPaint = new Paint();
@@ -60,21 +44,24 @@ public class StatusDrawable extends Drawable {
         radius = statusSize;
 
         if (TextUtils.isEmpty(status.getIcon())) {
+            this.context = context;
+            backgroundPaint.setColor(context.getColor(R.color.bg_default));
+            
             switch (status.getStatus()) {
                 case DND:
                     icon = R.drawable.ic_user_status_dnd;
-                    backgroundPaint.setColor(whiteBackground);
-                    this.context = context;
+                    break;
+
+                case BUSY:
+                    icon = R.drawable.ic_user_status_busy;
                     break;
 
                 case ONLINE:
-                    backgroundPaint.setColor(onlineStatus);
+                    icon = R.drawable.ic_user_status_online;
                     break;
 
                 case AWAY:
                     icon = R.drawable.ic_user_status_away;
-                    backgroundPaint.setColor(whiteBackground);
-                    this.context = context;
                     break;
 
                 default:
@@ -85,7 +72,7 @@ public class StatusDrawable extends Drawable {
         } else {
             text = status.getIcon();
 
-            backgroundPaint.setColor(whiteBackground);
+            backgroundPaint = null;
 
             textPaint = new Paint();
             textPaint.setColor(Color.WHITE);

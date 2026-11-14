@@ -1,25 +1,10 @@
 /*
+ * Nextcloud - Android Client
  *
- * Nextcloud Android client application
- *
- * @author Tobias Kaminsky
- * Copyright (C) 2021 Tobias Kaminsky
- * Copyright (C) 2021 Nextcloud GmbH
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2021 Tobias Kaminsky <tobias@kaminsky.me>
+ * SPDX-FileCopyrightText: 2021 Nextcloud GmbH
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
-
 package com.nextcloud.client.jobs
 
 import android.content.ContentResolver
@@ -30,9 +15,10 @@ import androidx.work.WorkerParameters
 import com.nextcloud.client.account.UserAccountManager
 import com.nextcloud.client.preferences.AppPreferences
 import com.owncloud.android.lib.common.utils.Log_OC
-import third_parties.sufficientlysecure.AndroidCalendar
-import third_parties.sufficientlysecure.SaveCalendar
+import thirdparties.sufficientlysecure.AndroidCalendar
+import thirdparties.sufficientlysecure.SaveCalendar
 import java.util.Calendar
+import kotlin.time.Duration.Companion.days
 
 class CalendarBackupWork(
     appContext: Context,
@@ -46,7 +32,7 @@ class CalendarBackupWork(
         val TAG = CalendarBackupWork::class.java.simpleName
         const val ACCOUNT = "account"
         const val FORCE = "force"
-        const val JOB_INTERVAL_MS: Long = 24 * 60 * 60 * 1000
+        val JOB_INTERVAL_MS = 1.days.inWholeMilliseconds
     }
 
     override fun doWork(): Result {

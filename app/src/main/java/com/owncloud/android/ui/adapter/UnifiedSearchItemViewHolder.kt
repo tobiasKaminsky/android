@@ -1,130 +1,197 @@
 /*
+ * Nextcloud - Android Client
  *
- * Nextcloud Android client application
- *
- * @author Tobias Kaminsky
- * Copyright (C) 2020 Tobias Kaminsky
- * Copyright (C) 2020 Nextcloud GmbH
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2020 Tobias Kaminsky <tobias@kaminsky.me>
+ * SPDX-FileCopyrightText: 2020 Nextcloud GmbH
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.ui.adapter
 
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.drawable.Drawable
 import android.view.View
-import androidx.core.content.res.ResourcesCompat
+import android.widget.TextView
+import androidx.core.content.ContextCompat
+import androidx.core.graphics.drawable.toBitmap
+import androidx.core.graphics.drawable.toDrawable
+import androidx.core.widget.ImageViewCompat
 import com.afollestad.sectionedrecyclerview.SectionedViewHolder
 import com.bumptech.glide.Glide
-import com.bumptech.glide.request.RequestListener
-import com.bumptech.glide.request.target.Target
-import com.nextcloud.client.account.User
-import com.nextcloud.client.network.ClientFactory
+import com.nextcloud.android.common.ui.theme.utils.ColorRole
+import com.nextcloud.common.NextcloudClient
+import com.nextcloud.model.SearchResultEntryType
+import com.nextcloud.utils.CalendarEventManager
+import com.nextcloud.utils.ContactManager
+import com.nextcloud.utils.GlideHelper
+import com.nextcloud.utils.extensions.getType
+import com.nextcloud.utils.extensions.isMonochromeIcon
+import com.nextcloud.utils.extensions.setVisibleIf
+import com.nextcloud.utils.extensions.thumbnailUrlForSize
+import com.nextcloud.utils.thumbnail.ThumbnailArguments
+import com.nextcloud.utils.thumbnail.ThumbnailGenerator
 import com.owncloud.android.R
 import com.owncloud.android.databinding.UnifiedSearchItemBinding
-import com.owncloud.android.datamodel.FileDataStorageManager
+import com.owncloud.android.datamodel.OCFile
 import com.owncloud.android.lib.common.SearchResultEntry
 import com.owncloud.android.ui.interfaces.UnifiedSearchListInterface
-import com.owncloud.android.utils.BitmapUtils
+import com.owncloud.android.ui.unifiedsearch.UnifiedSearchEntry
 import com.owncloud.android.utils.MimeTypeUtil
-import com.owncloud.android.utils.glide.CustomGlideStreamLoader
 import com.owncloud.android.utils.theme.ViewThemeUtils
 
-@Suppress("LongParameterList")
 class UnifiedSearchItemViewHolder(
+    private val supportsOpeningCalendarContactsLocally: Boolean,
     val binding: UnifiedSearchItemBinding,
-    val user: User,
-    val clientFactory: ClientFactory,
-    private val storageManager: FileDataStorageManager,
     private val listInterface: UnifiedSearchListInterface,
+    private val filesAction: FilesAction,
     val context: Context,
-    private val viewThemeUtils: ViewThemeUtils
-) :
-    SectionedViewHolder(binding.root) {
+    private val viewThemeUtils: ViewThemeUtils,
+    private val thumbnailGenerator: ThumbnailGenerator,
+    private val isE2EEActivate: Boolean
+) : SectionedViewHolder(binding.root) {
 
-    fun bind(entry: SearchResultEntry) {
-        binding.title.text = entry.title
-        binding.subline.text = entry.subline
+    interface FilesAction {
+        fun showFilesAction(searchResultEntry: SearchResultEntry)
+        fun loadFileThumbnail(searchResultEntry: SearchResultEntry, onClientReady: (NextcloudClient) -> Unit)
+    }
 
-        if (entry.isFile && storageManager.getFileByDecryptedRemotePath(entry.remotePath()) != null) {
-            binding.localFileIndicator.visibility = View.VISIBLE
+    private val contactManager = ContactManager(context)
+    private val calendarEventManager = CalendarEventManager(context)
+
+    fun bind(unifiedSearchEntry: UnifiedSearchEntry) {
+        val entry = unifiedSearchEntry.searchResult
+        val file = unifiedSearchEntry.localFile
+
+        bindTextView(binding.title, entry.title)
+        bindTextView(binding.subline, entry.subline)
+        bindLocalFileIndicator(entry, file)
+
+        val entryType = entry.getType()
+        bindThumbnail(entry, file, entryType)
+        bindMoreButton(entry, file)
+        binding.favoriteAction.setVisibleIf(file?.isFavorite == true)
+        binding.unifiedSearchItemLayout.setOnClickListener {
+            searchEntryOnClick(entry, entryType)
+        }
+    }
+
+    private fun bindTextView(view: TextView, text: String?) {
+        if (text.isNullOrEmpty()) {
+            view.visibility = View.GONE
         } else {
-            binding.localFileIndicator.visibility = View.GONE
+            view.visibility = View.VISIBLE
+            view.text = text
         }
-
-        val mimetype = MimeTypeUtil.getBestMimeTypeByFilename(entry.title)
-
-        val placeholder = getPlaceholder(entry, mimetype)
-
-        Glide.with(context).using(CustomGlideStreamLoader(user, clientFactory))
-            .load(entry.thumbnailUrl)
-            .asBitmap()
-            .placeholder(placeholder)
-            .error(placeholder)
-            .animate(android.R.anim.fade_in)
-            .listener(RoundIfNeededListener(entry))
-            .into(binding.thumbnail)
-
-        binding.unifiedSearchItemLayout.setOnClickListener { listInterface.onSearchResultClicked(entry) }
     }
 
-    private fun getPlaceholder(
-        entry: SearchResultEntry,
-        mimetype: String?
-    ): Drawable {
-        val drawable = with(entry.icon) {
-            when {
-                equals("icon-folder") ->
-                    ResourcesCompat.getDrawable(context.resources, R.drawable.folder, null)
-                startsWith("icon-note") ->
-                    ResourcesCompat.getDrawable(context.resources, R.drawable.ic_edit, null)
-                startsWith("icon-contacts") ->
-                    ResourcesCompat.getDrawable(context.resources, R.drawable.file_vcard, null)
-                startsWith("icon-calendar") ->
-                    ResourcesCompat.getDrawable(context.resources, R.drawable.file_calendar, null)
-                startsWith("icon-deck") ->
-                    ResourcesCompat.getDrawable(context.resources, R.drawable.ic_deck, null)
-                else ->
-                    MimeTypeUtil.getFileTypeIcon(mimetype, entry.title, context, viewThemeUtils)
-            }
-        }
-        return viewThemeUtils.platform.tintPrimaryDrawable(context, drawable)!!
+    private fun bindLocalFileIndicator(entry: SearchResultEntry, file: OCFile?) {
+        binding.localFileIndicator.setVisibleIf(entry.isFile && file != null)
     }
 
-    private inner class RoundIfNeededListener(private val entry: SearchResultEntry) :
-        RequestListener<String, Bitmap> {
-        override fun onException(
-            e: Exception?,
-            model: String?,
-            target: Target<Bitmap>?,
-            isFirstResource: Boolean
-        ): Boolean = false
+    private fun bindThumbnail(entry: SearchResultEntry, file: OCFile?, entryType: SearchResultEntryType) {
+        Glide.with(context).clear(binding.thumbnail)
+        binding.thumbnailOverlayIcon.setVisibleIf(false)
 
-        override fun onResourceReady(
-            resource: Bitmap?,
-            model: String?,
-            target: Target<Bitmap>?,
-            isFromMemoryCache: Boolean,
-            isFirstResource: Boolean
-        ): Boolean {
-            if (entry.rounded) {
-                val drawable = BitmapUtils.bitmapToCircularBitmapDrawable(context.resources, resource)
-                binding.thumbnail.setImageDrawable(drawable)
-                return true
+        when {
+            file != null && file.isFolder -> bindFolderThumbnail(file)
+            file != null && !file.isFolder -> bindLocalFileThumbnail(file)
+            else -> bindRemoteThumbnail(entry, entryType)
+        }
+    }
+
+    private fun bindFolderThumbnail(file: OCFile) {
+        binding.thumbnail.apply {
+            setImageDrawable(ContextCompat.getDrawable(context, R.drawable.folder))
+            viewThemeUtils.platform.colorImageView(this, ColorRole.PRIMARY)
+        }
+        thumbnailGenerator.folderThumbnailGenerator.setFolderOverlayIcon(file, binding.thumbnailOverlayIcon)
+    }
+
+    private fun bindLocalFileThumbnail(file: OCFile) {
+        if (file.remoteId == null || !file.isPreviewAvailable) {
+            val iconSize = context.resources.getDimensionPixelSize(R.dimen.file_icon_size)
+            val icon = MimeTypeUtil.getFileTypeIcon(file.mimeType, file.fileName, context, viewThemeUtils)
+                ?.toBitmap(iconSize, iconSize)
+                ?.toDrawable(context.resources)
+            binding.thumbnail.apply {
+                setImageDrawable(icon)
+                clearColorFilter()
+                ImageViewCompat.setImageTintList(this, null)
             }
-            return false
+        } else {
+            thumbnailGenerator.setThumbnail(
+                file,
+                binding.thumbnail,
+                ThumbnailArguments.withShimmer(binding.thumbnailShimmer)
+            )
+        }
+    }
+
+    private fun bindRemoteThumbnail(entry: SearchResultEntry, entryType: SearchResultEntryType) {
+        binding.thumbnail.apply {
+            setImageDrawable(ContextCompat.getDrawable(context, R.drawable.ic_find_in_page))
+            viewThemeUtils.platform.colorImageView(this, ColorRole.SECONDARY)
+        }
+
+        if (entry.thumbnailUrl.isNotBlank()) {
+            val iconSize = context.resources.getDimensionPixelSize(R.dimen.file_icon_size)
+            filesAction.loadFileThumbnail(entry) { client ->
+                when {
+                    entryType == SearchResultEntryType.Avatar -> GlideHelper.loadCircularBitmapIntoImageView(
+                        context,
+                        entry.thumbnailUrl,
+                        binding.thumbnail,
+                        ContextCompat.getDrawable(context, R.drawable.ic_user)
+                    )
+
+                    entry.isMonochromeIcon() -> GlideHelper.loadTintableIconIntoImageView(
+                        context,
+                        client,
+                        entry.thumbnailUrl,
+                        binding.thumbnail,
+                        entryType.iconId(),
+                        iconSize
+                    )
+
+                    else -> GlideHelper.loadIntoImageView(
+                        context,
+                        client,
+                        entry.thumbnailUrlForSize(iconSize),
+                        binding.thumbnail,
+                        entryType.iconId(),
+                        circleCrop = entry.rounded
+                    )
+                }
+            }
+        } else {
+            binding.thumbnail.setImageDrawable(ContextCompat.getDrawable(context, entryType.iconId()))
+        }
+    }
+
+    private fun bindMoreButton(entry: SearchResultEntry, file: OCFile?) {
+        val isEncryptedWithoutKeys = file?.isEncrypted == true && !isE2EEActivate
+        binding.more.setVisibleIf(entry.isFile && !isEncryptedWithoutKeys)
+
+        binding.more.setOnClickListener {
+            filesAction.showFilesAction(entry)
+        }
+    }
+
+    private fun searchEntryOnClick(entry: SearchResultEntry, entryType: SearchResultEntryType) {
+        if (supportsOpeningCalendarContactsLocally) {
+            when (entryType) {
+                SearchResultEntryType.Contact -> {
+                    contactManager.openContact(entry, listInterface)
+                }
+
+                SearchResultEntryType.CalendarEvent -> {
+                    calendarEventManager.openCalendarEvent(entry, listInterface)
+                }
+
+                else -> {
+                    listInterface.onSearchResultClicked(entry)
+                }
+            }
+        } else {
+            listInterface.onSearchResultClicked(entry)
         }
     }
 }

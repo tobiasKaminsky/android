@@ -1,25 +1,10 @@
 /*
- * Nextcloud Android client application
+ * Nextcloud - Android Client
  *
- *  @author Álvaro Brey
- *  Copyright (C) 2022 Álvaro Brey
- *  Copyright (C) 2022 Nextcloud GmbH
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE
- * License as published by the Free Software Foundation; either
- * version 3 of the License, or any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU AFFERO GENERAL PUBLIC LICENSE for more details.
- *
- * You should have received a copy of the GNU Affero General Public
- * License along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * SPDX-FileCopyrightText: 2022 Álvaro Brey <alvaro@alvarobrey.com>
+ * SPDX-FileCopyrightText: 2022 Nextcloud GmbH
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
-
 package com.nextcloud.client.database.migrations
 
 import androidx.room.migration.Migration
@@ -31,17 +16,17 @@ import com.nextcloud.client.database.migrations.DatabaseMigrationUtil.TYPE_TEXT
 
 class RoomMigration : Migration(NextcloudDatabase.FIRST_ROOM_DB_VERSION - 1, NextcloudDatabase.FIRST_ROOM_DB_VERSION) {
 
-    override fun migrate(database: SupportSQLiteDatabase) {
-        migrateFilesystemTable(database)
-        migrateUploadsTable(database)
-        migrateCapabilitiesTable(database)
-        migrateFilesTable(database)
+    override fun migrate(db: SupportSQLiteDatabase) {
+        migrateFilesystemTable(db)
+        migrateUploadsTable(db)
+        migrateCapabilitiesTable(db)
+        migrateFilesTable(db)
     }
 
     /**
      * filesystem table: STRING converted to TEXT
      */
-    private fun migrateFilesystemTable(database: SupportSQLiteDatabase) {
+    private fun migrateFilesystemTable(db: SupportSQLiteDatabase) {
         val newColumns = mapOf(
             "_id" to TYPE_INTEGER_PRIMARY_KEY,
             "local_path" to TYPE_TEXT,
@@ -53,13 +38,13 @@ class RoomMigration : Migration(NextcloudDatabase.FIRST_ROOM_DB_VERSION - 1, Nex
             "modified_at" to TYPE_INTEGER
         )
 
-        DatabaseMigrationUtil.migrateTable(database, "filesystem", newColumns)
+        DatabaseMigrationUtil.migrateTable(db, "filesystem", newColumns)
     }
 
     /**
      * uploads table: LONG converted to INTEGER
      */
-    private fun migrateUploadsTable(database: SupportSQLiteDatabase) {
+    private fun migrateUploadsTable(db: SupportSQLiteDatabase) {
         val newColumns = mapOf(
             "_id" to TYPE_INTEGER_PRIMARY_KEY,
             "local_path" to TYPE_TEXT,
@@ -79,13 +64,13 @@ class RoomMigration : Migration(NextcloudDatabase.FIRST_ROOM_DB_VERSION - 1, Nex
             "folder_unlock_token" to TYPE_TEXT
         )
 
-        DatabaseMigrationUtil.migrateTable(database, "list_of_uploads", newColumns)
+        DatabaseMigrationUtil.migrateTable(db, "list_of_uploads", newColumns)
     }
 
     /**
      * capabilities table: "files_drop" column removed
      */
-    private fun migrateCapabilitiesTable(database: SupportSQLiteDatabase) {
+    private fun migrateCapabilitiesTable(db: SupportSQLiteDatabase) {
         val newColumns = mapOf(
             "_id" to TYPE_INTEGER_PRIMARY_KEY,
             "account" to TYPE_TEXT,
@@ -137,13 +122,13 @@ class RoomMigration : Migration(NextcloudDatabase.FIRST_ROOM_DB_VERSION - 1, Nex
             "files_locking_version" to TYPE_TEXT
         )
 
-        DatabaseMigrationUtil.migrateTable(database, "capabilities", newColumns)
+        DatabaseMigrationUtil.migrateTable(db, "capabilities", newColumns)
     }
 
     /**
      * files table: "public_link" column removed
      */
-    private fun migrateFilesTable(database: SupportSQLiteDatabase) {
+    private fun migrateFilesTable(db: SupportSQLiteDatabase) {
         val newColumns = mapOf(
             "_id" to TYPE_INTEGER_PRIMARY_KEY,
             "filename" to TYPE_TEXT,
@@ -189,6 +174,6 @@ class RoomMigration : Migration(NextcloudDatabase.FIRST_ROOM_DB_VERSION - 1, Nex
             "lock_timeout" to TYPE_INTEGER,
             "lock_token" to TYPE_TEXT
         )
-        DatabaseMigrationUtil.migrateTable(database, "filelist", newColumns)
+        DatabaseMigrationUtil.migrateTable(db, "filelist", newColumns)
     }
 }

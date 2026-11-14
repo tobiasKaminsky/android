@@ -1,25 +1,11 @@
 /*
+ * Nextcloud - Android Client
  *
- * Nextcloud Android client application
- *
- * @author Tobias Kaminsky
- * Copyright (C) 2022 Tobias Kaminsky
- * Copyright (C) 2022 Nextcloud GmbH
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2026 Alper Ozturk <alper.ozturk@nextcloud.com>
+ * SPDX-FileCopyrightText: 2022 Tobias Kaminsky <tobias@kaminsky.me>
+ * SPDX-FileCopyrightText: 2022 Nextcloud GmbH
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
-
 package com.nextcloud.client.jobs
 
 import android.app.DownloadManager
@@ -29,159 +15,155 @@ import android.content.ContentResolver
 import android.content.Context
 import android.content.Intent
 import android.content.Intent.FLAG_ACTIVITY_NEW_TASK
-import android.graphics.BitmapFactory
 import androidx.core.app.NotificationCompat
-import androidx.work.Worker
+import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.nextcloud.client.account.User
+import com.nextcloud.client.jobs.worker.WorkerFilesPayload
 import com.owncloud.android.R
 import com.owncloud.android.datamodel.FileDataStorageManager
 import com.owncloud.android.datamodel.OCFile
-import com.owncloud.android.files.services.FileDownloader
+import com.owncloud.android.lib.common.OwnCloudClient
+import com.owncloud.android.lib.common.OwnCloudClientManagerFactory
 import com.owncloud.android.lib.common.utils.Log_OC
+import com.owncloud.android.operations.DownloadFileOperation
 import com.owncloud.android.operations.DownloadType
-import com.owncloud.android.ui.dialog.SendShareDialog
 import com.owncloud.android.ui.notifications.NotificationUtils
 import com.owncloud.android.utils.FileExportUtils
 import com.owncloud.android.utils.FileStorageUtils
 import com.owncloud.android.utils.theme.ViewThemeUtils
-import java.security.SecureRandom
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class FilesExportWork(
-    private val appContext: Context,
+    private val context: Context,
     private val user: User,
     private val contentResolver: ContentResolver,
     private val viewThemeUtils: ViewThemeUtils,
     params: WorkerParameters
-) : Worker(appContext, params) {
+) : CoroutineWorker(context, params) {
 
-    private lateinit var storageManager: FileDataStorageManager
+    companion object {
+        private const val NOTIFICATION_ID = 179
+        const val FILES_TO_DOWNLOAD = "files_to_download"
+        private val TAG = FilesExportWork::class.simpleName
+    }
 
-    override fun doWork(): Result {
-        val fileIDs = inputData.getLongArray(FILES_TO_DOWNLOAD) ?: LongArray(0)
+    private val notificationManager =
+        context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-        if (fileIDs.isEmpty()) {
-            Log_OC.w(this, "File export was started without any file")
+    override suspend fun doWork(): Result {
+        val path = inputData.getString(FILES_TO_DOWNLOAD)
+        val fileIds = WorkerFilesPayload.read(path)
+        if (fileIds.isEmpty()) {
+            Log_OC.w(TAG, "file export was started without any file")
+            WorkerFilesPayload.cleanup(path)
             return Result.success()
         }
 
-        storageManager = FileDataStorageManager(user, contentResolver)
+        val storageManager = FileDataStorageManager(user, contentResolver)
 
-        val successfulExports = exportFiles(fileIDs)
-
-        // show notification
-        showSuccessNotification(successfulExports)
+        try {
+            val (succeeded, failed) = exportFiles(fileIds, storageManager)
+            notificationManager.cancel(NOTIFICATION_ID)
+            showSummaryNotification(succeeded, failed)
+        } finally {
+            WorkerFilesPayload.cleanup(path)
+        }
 
         return Result.success()
     }
 
-    private fun exportFiles(fileIDs: LongArray): Int {
-        var successfulExports = 0
-        fileIDs
-            .asSequence()
-            .map { storageManager.getFileById(it) }
-            .filterNotNull()
-            .forEach { ocFile ->
-                if (!FileStorageUtils.checkIfEnoughSpace(ocFile)) {
-                    showErrorNotification(successfulExports)
-                    return@forEach
-                }
+    @Suppress("DEPRECATION")
+    private suspend fun exportFiles(fileIDs: List<Long>, storageManager: FileDataStorageManager): Pair<Int, Int> =
+        withContext(Dispatchers.IO) {
+            val client = runCatching {
+                OwnCloudClientManagerFactory.getDefaultSingleton()
+                    .getClientFor(user.toOwnCloudAccount(), context)
+            }.onFailure {
+                Log_OC.e(TAG, "Failed to create OwnCloudClient", it)
+            }.getOrNull()
 
-                if (ocFile.isDown) {
-                    try {
-                        exportFile(ocFile)
-                    } catch (e: IllegalStateException) {
-                        Log_OC.e(TAG, "Error exporting file", e)
-                        showErrorNotification(successfulExports)
+            val fileExportUtils = FileExportUtils()
+            val files = fileIDs.mapNotNull { storageManager.getFileById(it) }
+            val total = files.size
+            var succeeded = 0
+            var failed = 0
+
+            files.forEachIndexed { index, ocFile ->
+                showProgressNotification(index, total, ocFile.fileName)
+
+                val exported = when {
+                    !FileStorageUtils.checkIfEnoughSpace(ocFile) -> false
+
+                    ocFile.isDown -> runCatching {
+                        fileExportUtils.exportFile(ocFile.fileName, ocFile.mimeType, contentResolver, ocFile, null)
+                    }.onFailure { Log_OC.e(TAG, "Error exporting file", it) }.isSuccess
+
+                    client != null -> downloadFile(ocFile, client)
+
+                    else -> {
+                        Log_OC.e(TAG, "Skipping download, client unavailable: ${ocFile.remotePath}")
+                        false
                     }
-                } else {
-                    downloadFile(ocFile)
                 }
 
-                successfulExports++
+                if (exported) succeeded++ else failed++
             }
-        return successfulExports
-    }
 
-    @Throws(IllegalStateException::class)
-    private fun exportFile(ocFile: OCFile) {
-        FileExportUtils().exportFile(ocFile.fileName, ocFile.mimeType, contentResolver, ocFile, null)
-    }
-
-    private fun downloadFile(ocFile: OCFile) {
-        val i = Intent(appContext, FileDownloader::class.java)
-        i.putExtra(FileDownloader.EXTRA_USER, user)
-        i.putExtra(FileDownloader.EXTRA_FILE, ocFile)
-        i.putExtra(SendShareDialog.PACKAGE_NAME, "")
-        i.putExtra(SendShareDialog.ACTIVITY_NAME, "")
-        i.putExtra(FileDownloader.DOWNLOAD_TYPE, DownloadType.EXPORT)
-        appContext.startService(i)
-    }
-
-    private fun showErrorNotification(successfulExports: Int) {
-        if (successfulExports == 0) {
-            showNotification(
-                appContext.resources.getQuantityString(R.plurals.export_failed, successfulExports, successfulExports)
-            )
-        } else {
-            showNotification(
-                appContext.resources.getQuantityString(
-                    R.plurals.export_partially_failed,
-                    successfulExports,
-                    successfulExports
-                )
-            )
+            return@withContext succeeded to failed
         }
+
+    @Suppress("DEPRECATION")
+    private suspend fun downloadFile(file: OCFile, client: OwnCloudClient): Boolean = withContext(Dispatchers.IO) {
+        val operation = DownloadFileOperation(user, file, context)
+        operation.downloadType = DownloadType.EXPORT
+        return@withContext runCatching {
+            operation.execute(client)?.isSuccess == true
+        }.onFailure {
+            Log_OC.e(TAG, "Exception downloading file: ${file.remotePath}", it)
+        }.getOrDefault(false)
     }
 
-    private fun showSuccessNotification(successfulExports: Int) {
-        showNotification(
-            appContext.resources.getQuantityString(
-                R.plurals.export_successful,
-                successfulExports,
-                successfulExports
-            )
-        )
-    }
+    private fun showProgressNotification(current: Int, total: Int, fileName: String) {
+        val title = context.getString(R.string.export_in_progress, current + 1, total)
 
-    private fun showNotification(message: String) {
-        val notificationId = SecureRandom().nextInt()
-
-        val notificationBuilder = NotificationCompat.Builder(
-            appContext,
-            NotificationUtils.NOTIFICATION_CHANNEL_DOWNLOAD
-        )
+        val notification = NotificationCompat.Builder(context, NotificationUtils.NOTIFICATION_CHANNEL_DOWNLOAD)
             .setSmallIcon(R.drawable.notification_icon)
-            .setLargeIcon(BitmapFactory.decodeResource(appContext.resources, R.drawable.notification_icon))
-            .setSubText(user.accountName)
-            .setContentText(message)
-            .setAutoCancel(true)
+            .setContentTitle(title)
+            .setContentText(fileName)
+            .setProgress(total, current + 1, false)
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .also { viewThemeUtils.androidx.themeNotificationCompatBuilder(context, it) }
+            .build()
 
-        viewThemeUtils.androidx.themeNotificationCompatBuilder(appContext, notificationBuilder)
+        notificationManager.notify(NOTIFICATION_ID, notification)
+    }
 
-        val actionIntent = Intent(DownloadManager.ACTION_VIEW_DOWNLOADS).apply {
-            flags = FLAG_ACTIVITY_NEW_TASK
+    private fun showSummaryNotification(succeeded: Int, failed: Int) {
+        val resources = context.resources
+        val message = when {
+            failed == 0 -> resources.getQuantityString(R.plurals.export_successful, succeeded, succeeded)
+            succeeded == 0 -> resources.getQuantityString(R.plurals.export_failed, failed, failed)
+            else -> resources.getQuantityString(R.plurals.export_partially_failed, succeeded, succeeded)
         }
-        val actionPendingIntent = PendingIntent.getActivity(
-            appContext,
-            notificationId,
-            actionIntent,
+
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            NOTIFICATION_ID,
+            Intent(DownloadManager.ACTION_VIEW_DOWNLOADS).apply { flags = FLAG_ACTIVITY_NEW_TASK },
             PendingIntent.FLAG_CANCEL_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        notificationBuilder.addAction(
-            NotificationCompat.Action(
-                null,
-                appContext.getString(R.string.locate_folder),
-                actionPendingIntent
-            )
-        )
 
-        val notificationManager = appContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.notify(notificationId, notificationBuilder.build())
-    }
+        val notification = NotificationCompat.Builder(context, NotificationUtils.NOTIFICATION_CHANNEL_DOWNLOAD)
+            .setSmallIcon(R.drawable.notification_icon)
+            .setContentTitle(message)
+            .setAutoCancel(true)
+            .addAction(NotificationCompat.Action(null, context.getString(R.string.locate_folder), pendingIntent))
+            .also { viewThemeUtils.androidx.themeNotificationCompatBuilder(context, it) }
+            .build()
 
-    companion object {
-        const val FILES_TO_DOWNLOAD = "files_to_download"
-        private val TAG = FilesExportWork::class.simpleName
+        notificationManager.notify(NOTIFICATION_ID, notification)
     }
 }

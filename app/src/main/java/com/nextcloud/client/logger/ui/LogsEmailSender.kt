@@ -1,38 +1,33 @@
 /*
- * Nextcloud Android client application
+ * Nextcloud - Android Client
  *
- * @author Chris Narkiewicz
- * Copyright (C) 2019 Chris Narkiewicz <hello@ezaquarii.com>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2019 Chris Narkiewicz <hello@ezaquarii.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.logger.ui
 
+import android.app.DownloadManager
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
+import android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+import android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
 import android.net.Uri
 import android.os.Build
 import android.widget.Toast
+import androidx.core.app.NotificationCompat
 import androidx.core.content.FileProvider
 import com.nextcloud.client.core.AsyncRunner
 import com.nextcloud.client.core.Cancellable
 import com.nextcloud.client.core.Clock
 import com.nextcloud.client.logger.LogEntry
 import com.owncloud.android.R
+import com.owncloud.android.ui.notifications.NotificationUtils
+import com.owncloud.android.utils.FileExportUtils
 import java.io.File
-import java.io.FileWriter
+import java.security.SecureRandom
 import java.util.TimeZone
 
 class LogsEmailSender(private val context: Context, private val clock: Clock, private val runner: AsyncRunner) {
@@ -49,13 +44,17 @@ class LogsEmailSender(private val context: Context, private val clock: Clock, pr
     ) : Function0<Uri?> {
 
         override fun invoke(): Uri? {
-            file.parentFile.mkdirs()
-            val fo = FileWriter(file, false)
-            logs.forEach {
-                fo.write(it.toString(tz))
-                fo.write("\n")
+            file.parentFile?.mkdirs()
+
+            file.outputStream().use { outputStream ->
+                outputStream.writer(Charsets.UTF_8).buffered().use { writer ->
+                    logs.forEach {
+                        writer.write(it.toString(tz))
+                        writer.newLine()
+                    }
+                }
             }
-            fo.close()
+
             return FileProvider.getUriForFile(context, context.getString(R.string.file_provider_authority), file)
         }
     }
@@ -72,11 +71,76 @@ class LogsEmailSender(private val context: Context, private val clock: Clock, pr
         }
     }
 
+    fun export(logs: List<LogEntry>) {
+        if (task == null) {
+            val outFile = File(context.cacheDir, "attachments/logs.txt")
+            task = runner.postQuickTask(Task(context, logs, outFile, clock.tz), onResult = {
+                task = null
+                export(outFile)
+            })
+        }
+    }
+
     fun stop() {
         if (task != null) {
             task?.cancel()
             task = null
         }
+    }
+
+    private fun export(file: File) {
+        FileExportUtils().exportFile(
+            "Nextcloud Android Files Logs",
+            "text/plain",
+            context.contentResolver,
+            null,
+            file
+        )
+        showSuccessNotification(1)
+    }
+
+    fun showSuccessNotification(successfulExports: Int) {
+        showNotification(
+            context.resources.getQuantityString(
+                R.plurals.export_successful,
+                successfulExports,
+                successfulExports
+            )
+        )
+    }
+
+    private fun showNotification(message: String) {
+        val notificationId = SecureRandom().nextInt()
+
+        val notificationBuilder = NotificationCompat.Builder(
+            context,
+            NotificationUtils.NOTIFICATION_CHANNEL_DOWNLOAD
+        )
+            .setSmallIcon(R.drawable.notification_icon)
+            .setContentTitle(message)
+            .setAutoCancel(true)
+
+        val actionIntent = Intent(DownloadManager.ACTION_VIEW_DOWNLOADS).apply {
+            flags = FLAG_ACTIVITY_NEW_TASK
+        }
+        val actionPendingIntent = PendingIntent.getActivity(
+            context,
+            notificationId,
+            actionIntent,
+            PendingIntent.FLAG_CANCEL_CURRENT or
+                PendingIntent.FLAG_IMMUTABLE
+        )
+        notificationBuilder.addAction(
+            NotificationCompat.Action(
+                null,
+                context.getString(R.string.locate_folder),
+                actionPendingIntent
+            )
+        )
+
+        val notificationManager = context
+            .getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.notify(notificationId, notificationBuilder.build())
     }
 
     private fun send(uri: Uri?) {
@@ -89,22 +153,20 @@ class LogsEmailSender(private val context: Context, private val clock: Clock, pr
 
         intent.putExtra(Intent.EXTRA_TEXT, getPhoneInfo())
 
-        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        intent.flags = FLAG_ACTIVITY_NEW_TASK or FLAG_GRANT_READ_URI_PERMISSION
         intent.type = LOGS_MIME_TYPE
         intent.putParcelableArrayListExtra(Intent.EXTRA_STREAM, arrayListOf(uri))
         try {
             context.startActivity(intent)
-        } catch (ex: ActivityNotFoundException) {
+        } catch (_: ActivityNotFoundException) {
             Toast.makeText(context, R.string.log_send_no_mail_app, Toast.LENGTH_SHORT).show()
         }
     }
 
-    private fun getPhoneInfo(): String {
-        return "Model: " + Build.MODEL + "\n" +
-            "Brand: " + Build.BRAND + "\n" +
-            "Product: " + Build.PRODUCT + "\n" +
-            "Device: " + Build.DEVICE + "\n" +
-            "Version-Codename: " + Build.VERSION.CODENAME + "\n" +
-            "Version-Release: " + Build.VERSION.RELEASE
-    }
+    private fun getPhoneInfo(): String = "Model: " + Build.MODEL + "\n" +
+        "Brand: " + Build.BRAND + "\n" +
+        "Product: " + Build.PRODUCT + "\n" +
+        "Device: " + Build.DEVICE + "\n" +
+        "Version-Codename: " + Build.VERSION.CODENAME + "\n" +
+        "Version-Release: " + Build.VERSION.RELEASE
 }

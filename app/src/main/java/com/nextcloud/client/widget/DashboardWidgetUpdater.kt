@@ -1,25 +1,10 @@
 /*
+ * Nextcloud - Android Client
  *
- * Nextcloud Android client application
- *
- * @author Tobias Kaminsky
- * Copyright (C) 2022 Tobias Kaminsky
- * Copyright (C) 2022 Nextcloud GmbH
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2022 Tobias Kaminsky <tobias@kaminsky.me>
+ * SPDX-FileCopyrightText: 2022 Nextcloud GmbH
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
-
 package com.nextcloud.client.widget
 
 import android.app.PendingIntent
@@ -27,33 +12,27 @@ import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
-import android.net.Uri
+import android.os.Build
 import android.view.View
 import android.widget.RemoteViews
-import com.bumptech.glide.Glide
-import com.bumptech.glide.load.engine.DiskCacheStrategy
-import com.bumptech.glide.load.model.StreamEncoder
-import com.bumptech.glide.load.resource.file.FileToStreamDecoder
-import com.bumptech.glide.request.animation.GlideAnimation
-import com.bumptech.glide.request.target.AppWidgetTarget
+import androidx.core.graphics.drawable.toBitmap
+import androidx.core.net.toUri
 import com.nextcloud.android.lib.resources.dashboard.DashboardButton
 import com.nextcloud.client.account.CurrentAccountProvider
-import com.nextcloud.client.network.ClientFactory
+import com.nextcloud.utils.GlideHelper
 import com.owncloud.android.R
+import com.owncloud.android.lib.common.OwnCloudClientManagerFactory
 import com.owncloud.android.utils.BitmapUtils
-import com.owncloud.android.utils.DisplayUtils.SVG_SIZE
-import com.owncloud.android.utils.glide.CustomGlideUriLoader
-import com.owncloud.android.utils.svg.SVGorImage
-import com.owncloud.android.utils.svg.SvgOrImageBitmapTranscoder
-import com.owncloud.android.utils.svg.SvgOrImageDecoder
-import java.io.InputStream
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 class DashboardWidgetUpdater @Inject constructor(
     private val context: Context,
-    private val clientFactory: ClientFactory,
     private val accountProvider: CurrentAccountProvider
 ) {
+    private val scope = CoroutineScope(Dispatchers.IO)
 
     fun updateAppWidget(
         appWidgetManager: AppWidgetManager,
@@ -64,102 +43,120 @@ class DashboardWidgetUpdater @Inject constructor(
     ) {
         val intent = Intent(context, DashboardWidgetService::class.java).apply {
             putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
-            data = Uri.parse(toUri(Intent.URI_INTENT_SCHEME))
+            data = toUri(Intent.URI_INTENT_SCHEME).toUri()
         }
 
-        val views = RemoteViews(context.packageName, R.layout.dashboard_widget).apply {
-            setRemoteAdapter(R.id.list, intent)
-            setEmptyView(R.id.list, R.id.empty_view)
-            setTextViewText(R.id.title, title)
+        scope.launch {
+            val icon = if (iconUrl.isNotEmpty()) loadIcon(iconUrl) else null
 
-            setAddButton(addButton, appWidgetId, this)
-            setPendingReload(this, appWidgetId)
-            setPendingClick(this)
-            loadIcon(appWidgetId, iconUrl, this)
+            val views = RemoteViews(context.packageName, R.layout.dashboard_widget).apply {
+                icon?.let { setImageViewBitmap(R.id.icon, it) }
+                setRemoteAdapter(R.id.list, intent)
+                setEmptyView(R.id.list, R.id.empty_view)
+                setTextViewText(R.id.title, title)
+
+                setAddButton(addButton, appWidgetId, this)
+                setPendingReload(this, appWidgetId)
+                setPendingClick(this)
+            }
+
+            appWidgetManager.run {
+                updateAppWidget(appWidgetId, views)
+                notifyAppWidgetViewDataChanged(appWidgetId, R.id.list)
+            }
         }
-
-        appWidgetManager.updateAppWidget(appWidgetId, views)
-        appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, R.id.list)
     }
 
     private fun setPendingReload(remoteViews: RemoteViews, appWidgetId: Int) {
-        val intentUpdate = Intent(context, DashboardWidgetProvider::class.java)
-        intentUpdate.action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
-
-        val idArray = intArrayOf(appWidgetId)
-        intentUpdate.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, idArray)
-
-        remoteViews.setOnClickPendingIntent(
-            R.id.reload,
-            PendingIntent.getBroadcast(
-                context,
-                appWidgetId,
-                intentUpdate,
-                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-            )
-        )
+        val pendingIntent = getReloadPendingIntent(appWidgetId)
+        remoteViews.setOnClickPendingIntent(R.id.reload, pendingIntent)
     }
 
     private fun setPendingClick(remoteViews: RemoteViews) {
-        val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        val intent = Intent().apply {
+            setPackage(context.packageName)
+        }
 
-        val clickIntent = PendingIntent.getActivity(
+        val pendingIntent = PendingIntent.getActivity(
             context,
             0,
-            Intent(),
-            flags
+            intent,
+            pendingIntentFlags
         )
 
-        remoteViews.setPendingIntentTemplate(R.id.list, clickIntent)
+        remoteViews.setPendingIntentTemplate(R.id.list, pendingIntent)
     }
 
     private fun setAddButton(addButton: DashboardButton?, appWidgetId: Int, remoteViews: RemoteViews) {
-        // create add button
-        if (addButton == null) {
-            remoteViews.setViewVisibility(R.id.create, View.GONE)
-        } else {
-            remoteViews.setViewVisibility(R.id.create, View.VISIBLE)
-            remoteViews.setContentDescription(R.id.create, addButton.text)
+        remoteViews.run {
+            if (addButton == null) {
+                setViewVisibility(R.id.create, View.GONE)
+            } else {
+                setViewVisibility(R.id.create, View.VISIBLE)
+                setContentDescription(R.id.create, addButton.text)
 
-            val clickIntent = Intent(context, DashboardWidgetProvider::class.java)
-            clickIntent.action = DashboardWidgetProvider.OPEN_INTENT
-            clickIntent.data = Uri.parse(addButton.link)
+                val pendingIntent = getAddPendingIntent(appWidgetId, addButton)
 
-            remoteViews.setOnClickPendingIntent(
-                R.id.create,
-                PendingIntent.getBroadcast(
-                    context,
-                    appWidgetId,
-                    clickIntent,
-                    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+                setOnClickPendingIntent(
+                    R.id.create,
+                    pendingIntent
                 )
-            )
+            }
         }
     }
 
-    private fun loadIcon(appWidgetId: Int, iconUrl: String, remoteViews: RemoteViews) {
-        val iconTarget = object : AppWidgetTarget(context, remoteViews, R.id.icon, appWidgetId) {
-            override fun onResourceReady(resource: Bitmap?, glideAnimation: GlideAnimation<in Bitmap>?) {
-                if (resource != null) {
-                    val tintedBitmap = BitmapUtils.tintImage(resource, R.color.black)
-                    super.onResourceReady(tintedBitmap, glideAnimation)
-                }
-            }
+    // region PendingIntents
+    private fun getReloadPendingIntent(appWidgetId: Int): PendingIntent {
+        val intent = Intent(context, DashboardWidgetProvider::class.java).apply {
+            setPackage(context.packageName)
+            action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
+
+            val idArray = intArrayOf(appWidgetId)
+            putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, idArray)
         }
 
-        Glide.with(context)
-            .using(
-                CustomGlideUriLoader(accountProvider.user, clientFactory),
-                InputStream::class.java
-            )
-            .from(Uri::class.java)
-            .`as`(SVGorImage::class.java)
-            .transcode(SvgOrImageBitmapTranscoder(SVG_SIZE, SVG_SIZE), Bitmap::class.java)
-            .sourceEncoder(StreamEncoder())
-            .cacheDecoder(FileToStreamDecoder(SvgOrImageDecoder()))
-            .decoder(SvgOrImageDecoder())
-            .diskCacheStrategy(DiskCacheStrategy.SOURCE)
-            .load(Uri.parse(iconUrl))
-            .into(iconTarget)
+        return PendingIntent.getBroadcast(
+            context,
+            appWidgetId,
+            intent,
+            pendingIntentFlags
+        )
+    }
+
+    private fun getAddPendingIntent(appWidgetId: Int, addButton: DashboardButton): PendingIntent {
+        val intent = Intent(context, DashboardWidgetProvider::class.java).apply {
+            setPackage(context.packageName)
+            action = DashboardWidgetProvider.OPEN_INTENT
+            data = addButton.link.toUri()
+        }
+
+        return PendingIntent.getBroadcast(
+            context,
+            appWidgetId,
+            intent,
+            pendingIntentFlags
+        )
+    }
+
+    @Suppress("MagicNumber")
+    private val pendingIntentFlags: Int = when {
+        Build.VERSION.SDK_INT >= 34 -> {
+            PendingIntent.FLAG_UPDATE_CURRENT or
+                PendingIntent.FLAG_MUTABLE or
+                PendingIntent.FLAG_ALLOW_UNSAFE_IMPLICIT_INTENT
+        }
+
+        else -> {
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+        }
+    }
+    // endregion
+
+    private fun loadIcon(iconUrl: String): Bitmap? {
+        val client = OwnCloudClientManagerFactory.getDefaultSingleton()
+            .getNextcloudClientFor(accountProvider.user.toOwnCloudAccount(), context)
+        val iconSize = context.resources.getDimensionPixelSize(R.dimen.dashboard_widget_icon_size)
+        val bitmap = GlideHelper.getDrawable(context, client, iconUrl, iconSize)?.toBitmap() ?: return null
+        return BitmapUtils.tintImage(bitmap, context.getColor(R.color.black))
     }
 }

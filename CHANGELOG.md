@@ -1,8 +1,200 @@
-## 3.24.1 (February 21, 2022)
+## 3.33.0 (September 10, 2025)
+
+- Migrate to Glide 4
+- Performance improvements
+- Fix gallery image scaling
+- Bugfixes
+
+Minimum: NC 18 Server, Android 8.1 Nougat
+
+For a full list, please see https://github.com/nextcloud/android/milestone/112
+
+## 3.32.3 (August 21, 2025)
+
+- Bugfixes
+
+Minimum: NC 18 Server, Android 8.0 Nougat
+
+For a full list, please see https://github.com/nextcloud/android/milestone/114
+
+## 3.32.2 (July 18, 2025)
+
+- Resolved image blurriness issue.
+- Fixed crash occurring in the conflict resolution dialog.
+- Addressed crash in the upload finish receiver event handler.
+
+Minimum: NC 18 Server, Android 8.0 Nougat
+
+For a full list, please see https://github.com/nextcloud/android/milestone/115
+
+## 3.32.1 (July 14, 2025)
+
+- Bug fixes.
+
+Minimum: NC 18 Server, Android 8.0 Nougat
+
+For a full list, please see https://github.com/nextcloud/android/milestone/113
+
+## 3.32.0 (July 2, 2025)
+
+- Minimum supported Android version is 8.0.
+- Scrolling performance has been increased in the media tab.
+- Multi-select feature added to the media tab.
+- Custom share permissions have been added.
+- Bug fixes.
+
+Minimum: NC 18 Server, Android 8.0 Nougat
+
+For a full list, please see https://github.com/nextcloud/android/milestone/107
+
+## 3.31.4 (June 3, 2025)
+
+- Add missing auto migration
+
+Minimum: NC 18 Server, Android 7.1 Nougat
+
+For a full list, please see https://github.com/nextcloud/android/milestone/110
+
+## 3.31.3 (May 28, 2025)
+
+- fix simple sign up
+- bugfixes
+- update translations
+
+Minimum: NC 18 Server, Android 7.1 Nougat
+
+For a full list, please see https://github.com/nextcloud/android/milestone/110
+
+## 3.31.2 (May 20, 2025)
+
+- bring back MANAGE_EXTERNAL_STORAGE permission
+
+Minimum: NC 18 Server, Android 7.1 Nougat
+
+For a full list, please see https://github.com/nextcloud/android/milestone/108
+
+## 3.31.1 (April 3, 2025)
+
+- Various bug fixes and performance enhancements
+
+Minimum: NC 18 Server, Android 7.1 Nougat
+
+For a full list, please see https://github.com/nextcloud/android/milestone/108
+
+## 3.31.0 (February 25, 2025)
+
+- New share layout
+- Various bug fixes and performance enhancements
+
+Minimum: NC 18 Server, Android 7.1 Nougat
+
+For a full list, please see https://github.com/nextcloud/android/milestone/100
+
+## 3.30.7 (January 6, 2025)
+
+- Fix crash of auto upload settings
+
+Minimum: NC 16 Server, Android 7.0 Nougat
+
+For a full list, please see https://github.com/nextcloud/android/milestone/104
+
+## 3.30.3 (October 22, 2024)
+
+- Bugfix for two way sync: sync only on wifi
+
+## 3.30.2 (October 21, 2024)
+
+- Bugfix for two way sync. Please check listed folders in settings -> internal two way sync
+
+Minimum: NC 16 Server, Android 7.0 Nougat
+
+For a full list, please see https://github.com/nextcloud/android/milestone/99
+
+## 3.30.1 (October 11, 2024)
+
+- Bugfixes
+
+Minimum: NC 16 Server, Android 7.0 Nougat
+
+For a full list, please see https://github.com/nextcloud/android/milestone/99
+
+## 3.29.1 (June 27, 2024)
+
+- Bugfixes
+
+Minimum: NC 16 Server, Android 7.0 Nougat
+
+For a full list, please see https://github.com/nextcloud/android/milestone/93
+
+<!--
+ ~ SPDX-FileCopyrightText: 2016-2024 Nextcloud GmbH and Nextcloud contributors
+ ~ SPDX-FileCopyrightText: 2016-2024 Tobias Kaminsky <tobias@kaminsky.me>
+ ~ SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
+-->
+
+## 3.29.0 (April 24, 2024)
+
+- NC Assistant
+- Client certificates
+- Personal files view
+- REUSE compliance
+- Bugfixes
+
+Minimum: NC 16 Server, Android 7.0 Nougat
+
+For a full list, please see https://github.com/nextcloud/android/milestone/89
+
+## 3.28.2 (April 4th, 2024)
+
+- Bugfixes
+
+Minimum: NC 16 Server, Android 7.0 Nougat
+
+For a full list, please see https://github.com/nextcloud/android/milestone/90
+
+## 3.28.1 (March 25th, 2024)
+
+- Bugfixes
+
+Minimum: NC 16 Server, Android 7.0 Nougat
+
+For a full list, please see https://github.com/nextcloud/android/milestone/90
+
+## 3.28.0 (February 13th, 2024)
+
+- E2E sharing
+- Bugfixes
+
+Minimum: NC 16 Server, Android 7.0 Nougat
+
+For a full list, please see https://github.com/nextcloud/android/milestone/88
+
+## 3.26.0 (September 16, 2023)
+
+- image editing
+- image details, with map
+- show other Nextcloud apps
+
+Minimum: NC 16 Server, Android 6.0 Marshmallow
+
+For a full list, please see https://github.com/nextcloud/android/milestone/84
+
+## 3.25.0 (June 13, 2023)
+
+- show Groupfolder
+- Tag in file listing
+
+Minimum: NC 16 Server, Android 6.0 Marshmallow
+
+For a full list, please see https://github.com/nextcloud/android/milestone/81
+
+## 3.24.1 (February 21, 2023)
 
 - Fix crash in previous version when connecting to old server versions
 
 Minimum: NC 16 Server, Android 6.0 Marshmallow
+
+For a full list, please see https://github.com/nextcloud/android/milestone/80
 
 ## 3.24.0 (February 13, 2023)
 

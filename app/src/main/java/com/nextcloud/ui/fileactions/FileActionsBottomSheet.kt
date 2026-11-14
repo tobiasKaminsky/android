@@ -1,25 +1,10 @@
 /*
- * Nextcloud Android client application
+ * Nextcloud - Android Client
  *
- *  @author Álvaro Brey
- *  Copyright (C) 2022 Álvaro Brey
- *  Copyright (C) 2022 Nextcloud GmbH
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE
- * License as published by the Free Software Foundation; either
- * version 3 of the License, or any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU AFFERO GENERAL PUBLIC LICENSE for more details.
- *
- * You should have received a copy of the GNU Affero General Public
- * License along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
+ * SPDX-FileCopyrightText: 2022 Álvaro Brey <alvaro@alvarobrey.com>
+ * SPDX-FileCopyrightText: 2022 Nextcloud GmbH
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
-
 package com.nextcloud.ui.fileactions
 
 import android.content.Context
@@ -31,38 +16,44 @@ import android.text.style.StyleSpan
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
 import androidx.annotation.IdRes
 import androidx.appcompat.content.res.AppCompatResources
+import androidx.core.os.BundleCompat
 import androidx.core.os.bundleOf
-import androidx.core.view.isEmpty
+import androidx.core.view.isNotEmpty
 import androidx.core.view.isVisible
 import androidx.fragment.app.FragmentManager
-import androidx.fragment.app.setFragmentResult
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModelProvider
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.nextcloud.android.common.ui.theme.utils.ColorRole
+import com.nextcloud.android.lib.resources.clientintegration.Endpoint
 import com.nextcloud.client.account.CurrentAccountProvider
 import com.nextcloud.client.di.Injectable
 import com.nextcloud.client.di.ViewModelFactory
+import com.nextcloud.utils.SnackbarUtil
+import com.nextcloud.utils.avatar.AvatarGenerationListener
+import com.nextcloud.utils.avatar.AvatarGenerator
+import com.nextcloud.utils.text.DisplayTextFormatter
+import com.nextcloud.utils.text.SpanFormatter
+import com.nextcloud.utils.thumbnail.ThumbnailArguments
 import com.owncloud.android.R
 import com.owncloud.android.databinding.FileActionsBottomSheetBinding
 import com.owncloud.android.databinding.FileActionsBottomSheetItemBinding
 import com.owncloud.android.datamodel.FileDataStorageManager
 import com.owncloud.android.datamodel.OCFile
 import com.owncloud.android.datamodel.SyncedFolderProvider
-import com.owncloud.android.datamodel.ThumbnailsCacheManager
 import com.owncloud.android.lib.resources.files.model.FileLockType
 import com.owncloud.android.ui.activity.ComponentsGetter
-import com.owncloud.android.utils.DisplayUtils
-import com.owncloud.android.utils.DisplayUtils.AvatarGenerationListener
+import com.nextcloud.utils.thumbnail.ThumbnailGenerator
 import com.owncloud.android.utils.theme.ViewThemeUtils
 import javax.inject.Inject
 
-class FileActionsBottomSheet : BottomSheetDialogFragment(), Injectable {
+class FileActionsBottomSheet :
+    BottomSheetDialogFragment(),
+    Injectable {
 
     @Inject
     lateinit var viewThemeUtils: ViewThemeUtils
@@ -79,17 +70,25 @@ class FileActionsBottomSheet : BottomSheetDialogFragment(), Injectable {
     @Inject
     lateinit var syncedFolderProvider: SyncedFolderProvider
 
-    lateinit var viewModel: FileActionsViewModel
+    @Inject
+    lateinit var thumbnailGenerator: ThumbnailGenerator
+
+    @Inject
+    lateinit var avatarGenerator: AvatarGenerator
+
+    private lateinit var viewModel: FileActionsViewModel
 
     private var _binding: FileActionsBottomSheetBinding? = null
-    private val binding
+    val binding
         get() = _binding!!
 
-    lateinit var componentsGetter: ComponentsGetter
+    private lateinit var componentsGetter: ComponentsGetter
 
-    private val thumbnailAsyncTasks = mutableListOf<ThumbnailsCacheManager.ThumbnailGenerationTask>()
+    private var endpoints: List<Endpoint>? = mutableListOf()
 
-    interface ResultListener {
+    private lateinit var clientIntegration: ClientIntegration
+
+    fun interface ResultListener {
         fun onResult(@IdRes actionId: Int)
     }
 
@@ -105,16 +104,22 @@ class FileActionsBottomSheet : BottomSheetDialogFragment(), Injectable {
 
         viewModel.load(requireArguments(), componentsGetter)
 
+        endpoints = arguments?.let { bundle ->
+            BundleCompat.getParcelableArrayList(bundle, FileActionsViewModel.ARG_ENDPOINTS, Endpoint::class.java)
+        } ?: mutableListOf()
+
         val bottomSheetDialog = dialog as BottomSheetDialog
         bottomSheetDialog.behavior.state = BottomSheetBehavior.STATE_EXPANDED
         bottomSheetDialog.behavior.skipCollapsed = true
 
+        viewThemeUtils.platform.colorViewBackground(binding.bottomSheet, ColorRole.SURFACE)
+
+        clientIntegration = ClientIntegration(this, currentUserProvider.user, requireContext())
+
         return binding.root
     }
 
-    private fun handleState(
-        state: FileActionsViewModel.UiState
-    ) {
+    private fun handleState(state: FileActionsViewModel.UiState) {
         toggleLoadingOrContent(state)
         when (state) {
             is FileActionsViewModel.UiState.LoadedForSingleFile -> {
@@ -122,18 +127,21 @@ class FileActionsBottomSheet : BottomSheetDialogFragment(), Injectable {
                 if (state.lockInfo != null) {
                     displayLockInfo(state.lockInfo)
                 }
-                displayActions(state.actions)
+                displayActions(state.titleFile, state.actions)
                 displayTitle(state.titleFile)
             }
+
             is FileActionsViewModel.UiState.LoadedForMultipleFiles -> {
                 setMultipleFilesThumbnail()
-                displayActions(state.actions)
+                displayActions(state.firstFile, state.actions)
                 displayTitle(state.fileCount)
             }
-            FileActionsViewModel.UiState.Loading -> {}
+
+            FileActionsViewModel.UiState.Loading -> Unit
+
             FileActionsViewModel.UiState.Error -> {
-                context?.let {
-                    Toast.makeText(it, R.string.error_file_actions, Toast.LENGTH_SHORT).show()
+                activity?.let {
+                    SnackbarUtil.show(it, R.string.error_file_actions)
                 }
                 dismissAllowingStateLoss()
             }
@@ -142,18 +150,10 @@ class FileActionsBottomSheet : BottomSheetDialogFragment(), Injectable {
 
     private fun loadFileThumbnail(titleFile: OCFile?) {
         titleFile?.let {
-            DisplayUtils.setThumbnail(
+            thumbnailGenerator.setThumbnail(
                 it,
                 binding.thumbnailLayout.thumbnail,
-                currentUserProvider.user,
-                storageManager,
-                thumbnailAsyncTasks,
-                false,
-                context,
-                binding.thumbnailLayout.thumbnailShimmer,
-                null,
-                viewThemeUtils,
-                syncedFolderProvider
+                ThumbnailArguments.withShimmer(binding.thumbnailLayout.thumbnailShimmer)
             )
         }
     }
@@ -195,34 +195,51 @@ class FileActionsBottomSheet : BottomSheetDialogFragment(), Injectable {
     private fun toggleLoadingOrContent(state: FileActionsViewModel.UiState) {
         if (state is FileActionsViewModel.UiState.Loading) {
             binding.bottomSheetLoading.isVisible = true
-            binding.bottomSheetContent.isVisible = false
+            binding.bottomSheetHeader.isVisible = false
             viewThemeUtils.platform.colorCircularProgressBar(binding.bottomSheetLoading, ColorRole.PRIMARY)
         } else {
             binding.bottomSheetLoading.isVisible = false
-            binding.bottomSheetContent.isVisible = true
+            binding.bottomSheetHeader.isVisible = true
         }
     }
 
-    private fun displayActions(
-        actions: List<FileAction>
-    ) {
-        if (binding.fileActionsList.isEmpty()) {
-            actions.forEach { action ->
-                val view = inflateActionView(action)
-                binding.fileActionsList.addView(view)
-            }
+    private fun displayActions(file: OCFile?, actions: List<FileAction>) {
+        if (binding.fileActionsList.isNotEmpty()) {
+            return
+        }
+
+        actions.forEach { action ->
+            val view = inflateActionView(action)
+            binding.fileActionsList.addView(view)
+        }
+
+        val parentDir = file?.parentId?.let { storageManager.getFileById(it) }
+
+        if (endpoints.isNullOrEmpty() || parentDir?.isEncrypted == true) {
+            return
+        }
+
+        // add client integration
+        endpoints?.forEach {
+            val view = clientIntegration.inflateClientIntegrationActionView(
+                it,
+                layoutInflater,
+                binding,
+                viewModel,
+                viewThemeUtils
+            )
+            binding.fileActionsList.addView(view)
         }
     }
 
     private fun displayTitle(titleFile: OCFile?) {
         val decryptedFileName = titleFile?.decryptedFileName
-        if (decryptedFileName != null) {
-            decryptedFileName.let {
-                binding.title.text = it
-            }
-        } else {
+        if (decryptedFileName == null) {
             binding.title.isVisible = false
+            return
         }
+
+        binding.title.setFilename(decryptedFileName, titleFile.isFolder)
     }
 
     private fun displayLockInfo(lockInfo: FileActionsViewModel.LockInfo) {
@@ -249,18 +266,13 @@ class FileActionsBottomSheet : BottomSheetDialogFragment(), Injectable {
                 icon.setImageDrawable(avatarDrawable)
             }
 
-            override fun shouldCallGeneratedCallback(tag: String?, callContext: Any?): Boolean {
-                return false
-            }
+            override fun shouldCallGeneratedCallback(tag: String?, callContext: Any?): Boolean = false
         }
-        DisplayUtils.setAvatar(
-            currentUserProvider.user,
+        avatarGenerator.setUserAvatar(
             lockInfo.lockedBy,
             listener,
             resources.getDimension(R.dimen.list_item_avatar_icon_radius),
-            resources,
-            this,
-            requireContext()
+            this
         )
     }
 
@@ -269,7 +281,7 @@ class FileActionsBottomSheet : BottomSheetDialogFragment(), Injectable {
             FileLockType.COLLABORATIVE -> R.string.locked_by_app
             else -> R.string.locked_by
         }
-        return DisplayUtils.createTextWithSpan(
+        return SpanFormatter.styleLast(
             getString(resource, lockInfo.lockedBy),
             lockInfo.lockedBy,
             StyleSpan(Typeface.BOLD)
@@ -277,7 +289,8 @@ class FileActionsBottomSheet : BottomSheetDialogFragment(), Injectable {
     }
 
     private fun getLockedUntilText(lockInfo: FileActionsViewModel.LockInfo): CharSequence {
-        val relativeTimestamp = DisplayUtils.getRelativeTimestamp(context, lockInfo.lockedUntil!!, true)
+        val relativeTimestamp =
+            DisplayTextFormatter.formatRelativeTimestamp(requireContext(), lockInfo.lockedUntil!!, true)
         return getString(R.string.lock_expiration_info, relativeTimestamp)
     }
 
@@ -289,26 +302,32 @@ class FileActionsBottomSheet : BottomSheetDialogFragment(), Injectable {
         val itemBinding = FileActionsBottomSheetItemBinding.inflate(layoutInflater, binding.fileActionsList, false)
             .apply {
                 root.setOnClickListener {
+                    action.toggledFavorite()?.let { showAction(it, viewThemeUtils) }
                     viewModel.onClick(action)
                 }
-                text.setText(action.title)
-                if (action.icon != null) {
-                    val drawable =
-                        viewThemeUtils.platform.tintDrawable(
-                            requireContext(),
-                            AppCompatResources.getDrawable(requireContext(), action.icon)!!
-                        )
-                    icon.setImageDrawable(drawable)
-                }
+                showAction(action, viewThemeUtils)
             }
         return itemBinding.root
     }
 
     private fun dispatchActionClick(id: Int?) {
-        if (id != null) {
-            setFragmentResult(REQUEST_KEY, bundleOf(RESULT_KEY_ACTION_ID to id))
-            parentFragmentManager.clearFragmentResultListener(REQUEST_KEY)
+        if (id == null) {
+            return
+        }
+
+        // get the manager and dismiss before sending, as the result can replace the fragment hosting this sheet
+        val fragmentManager = parentFragmentManager
+        val isFavoriteToggle = id == R.id.action_favorite || id == R.id.action_unset_favorite
+        if (!isFavoriteToggle) {
             dismiss()
+        }
+
+        fragmentManager.setFragmentResult(REQUEST_KEY, bundleOf(RESULT_KEY_ACTION_ID to id))
+        fragmentManager.clearFragmentResultListener(REQUEST_KEY)
+
+        if (isFavoriteToggle) {
+            val delay = resources.getInteger(android.R.integer.config_mediumAnimTime).toLong()
+            binding.root.postDelayed({ dismissAllowingStateLoss() }, delay)
         }
     }
 
@@ -323,9 +342,7 @@ class FileActionsBottomSheet : BottomSheetDialogFragment(), Injectable {
             isOverflow: Boolean,
             @IdRes
             additionalToHide: List<Int>? = null
-        ): FileActionsBottomSheet {
-            return newInstance(1, listOf(file), isOverflow, additionalToHide, true)
-        }
+        ): FileActionsBottomSheet = newInstance(1, listOf(file), isOverflow, additionalToHide, true, emptyList())
 
         @JvmStatic
         @JvmOverloads
@@ -335,20 +352,32 @@ class FileActionsBottomSheet : BottomSheetDialogFragment(), Injectable {
             isOverflow: Boolean,
             @IdRes
             additionalToHide: List<Int>? = null,
-            inSingleFileFragment: Boolean = false
-        ): FileActionsBottomSheet {
-            return FileActionsBottomSheet().apply {
-                val argsBundle = bundleOf(
-                    FileActionsViewModel.ARG_ALL_FILES_COUNT to numberOfAllFiles,
-                    FileActionsViewModel.ARG_FILES to ArrayList<OCFile>(files),
-                    FileActionsViewModel.ARG_IS_OVERFLOW to isOverflow,
-                    FileActionsViewModel.ARG_IN_SINGLE_FILE_FRAGMENT to inSingleFileFragment
-                )
-                additionalToHide?.let {
-                    argsBundle.putIntArray(FileActionsViewModel.ARG_ADDITIONAL_FILTER, additionalToHide.toIntArray())
-                }
-                arguments = argsBundle
+            inSingleFileFragment: Boolean = false,
+            endpoints: List<Endpoint>
+        ): FileActionsBottomSheet = FileActionsBottomSheet().apply {
+            val argsBundle = bundleOf(
+                FileActionsViewModel.ARG_ALL_FILES_COUNT to numberOfAllFiles,
+                FileActionsViewModel.ARG_FILES to ArrayList<OCFile>(files),
+                FileActionsViewModel.ARG_IS_OVERFLOW to isOverflow,
+                FileActionsViewModel.ARG_IN_SINGLE_FILE_FRAGMENT to inSingleFileFragment,
+                FileActionsViewModel.ARG_ENDPOINTS to java.util.ArrayList(endpoints)
+            )
+            additionalToHide?.let {
+                argsBundle.putIntArray(FileActionsViewModel.ARG_ADDITIONAL_FILTER, additionalToHide.toIntArray())
             }
+            arguments = argsBundle
         }
+    }
+}
+
+private fun FileActionsBottomSheetItemBinding.showAction(action: FileAction, viewThemeUtils: ViewThemeUtils) {
+    text.setText(action.title)
+    if (action.icon != null) {
+        val context = root.context
+        val drawable = viewThemeUtils.platform.tintDrawable(
+            context,
+            AppCompatResources.getDrawable(context, action.icon)!!
+        )
+        icon.setImageDrawable(drawable)
     }
 }

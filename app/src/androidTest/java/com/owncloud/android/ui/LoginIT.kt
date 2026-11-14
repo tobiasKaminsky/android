@@ -1,25 +1,13 @@
 /*
- * Nextcloud Android client application
+ * Nextcloud - Android Client
  *
- * @author Tobias Kaminsky
- * Copyright (C) 2020 Tobias Kaminsky
- * Copyright (C) 2020 Nextcloud GmbH
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2020 Tobias Kaminsky <tobias@kaminsky.me>
+ * SPDX-FileCopyrightText: 2020 Nextcloud GmbH
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.ui
 
+import android.os.Build
 import androidx.test.core.app.ActivityScenario
 import androidx.test.espresso.Espresso
 import androidx.test.espresso.action.ViewActions
@@ -28,9 +16,11 @@ import androidx.test.espresso.web.sugar.Web
 import androidx.test.espresso.web.webdriver.DriverAtoms
 import androidx.test.espresso.web.webdriver.Locator
 import androidx.test.filters.LargeTest
+import androidx.test.filters.SdkSuppress
 import androidx.test.platform.app.InstrumentationRegistry
 import com.nextcloud.client.account.UserAccountManager
 import com.nextcloud.client.account.UserAccountManagerImpl
+import com.nextcloud.test.Flaky
 import com.nextcloud.test.GrantStoragePermissionRule
 import com.nextcloud.test.RetryTestRule
 import com.owncloud.android.AbstractIT
@@ -56,9 +46,15 @@ class LoginIT : AbstractIT() {
         ActivityScenario.launch(AuthenticatorActivity::class.java)
     }
 
+    /**
+     * The CI/CD pipeline is encountering issues related to the Android version for this functionality.
+     * Therefore the test will only be executed on Android versions 10 and above.
+     */
     @Test
     @Throws(InterruptedException::class)
-    @Suppress("MagicNumber", "SwallowedException")
+    @Suppress("MagicNumber")
+    @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q)
+    @Flaky("Login no longer uses an in-app WebView, so espresso-web (Espresso.onWebView) cannot drive it. ")
     fun login() {
         val arguments = InstrumentationRegistry.getArguments()
         val baseUrl = arguments.getString("TEST_SERVER_URL")!!
@@ -76,7 +72,7 @@ class LoginIT : AbstractIT() {
             Web.onWebView()
                 .withElement(DriverAtoms.findElement(Locator.XPATH, "//form[@id='login-form']/input[@type='submit']"))
                 .perform(DriverAtoms.webClick())
-        } catch (e: RuntimeException) {
+        } catch (_: RuntimeException) {
             // NC < 25
             Web.onWebView()
                 .withElement(DriverAtoms.findElement(Locator.XPATH, "//p[@id='redirect-link']/a"))
@@ -99,7 +95,7 @@ class LoginIT : AbstractIT() {
             Web.onWebView()
                 .withElement(DriverAtoms.findElement(Locator.XPATH, "//button[@type='submit']"))
                 .perform(DriverAtoms.webClick())
-        } catch (e: RuntimeException) {
+        } catch (_: RuntimeException) {
             // NC < 25
             Web.onWebView()
                 .withElement(DriverAtoms.findElement(Locator.XPATH, "//input[@type='submit']"))
